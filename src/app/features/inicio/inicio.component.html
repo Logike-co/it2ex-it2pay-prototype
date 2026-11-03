@@ -34,7 +34,7 @@
   <h2 class="card-title">Seleccionar caja e ingresar <app-trace-badge [items]="['F01', 'F02']" /></h2>
   @if (state().session.registerId) {
     <p class="mb-3 rounded bg-success-soft px-3 py-2 text-sm text-success" data-testid="sesion-activa">
-      Sesión activa en {{ state().session.registerId }} · turno {{ state().session.shiftId ?? 'cerrado' }}.
+      Sesión activa en <span class="whitespace-nowrap">{{ state().session.registerId }}</span> · turno <span class="whitespace-nowrap">{{ state().session.shiftId ?? 'cerrado' }}</span>.
       <a routerLink="/caja" class="whitespace-nowrap underline">Ir a la terminal de caja</a>
       ·
       <button type="button" class="whitespace-nowrap underline" (click)="logout()">Salir</button>

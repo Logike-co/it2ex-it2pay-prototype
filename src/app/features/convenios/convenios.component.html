@@ -13,7 +13,7 @@
     <tbody>
       @for (s of state().services; track s.id) {
         <tr [attr.data-testid]="'srv-' + s.id">
-          <td class="font-mono text-xs">{{ s.id }}</td>
+          <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ s.id }}</span></td>
           <td>{{ s.name }} @if (s.p2) {<span class="text-xs text-muted">(P2)</span>}</td>
           <td class="text-xs">{{ s.categoryCode }} {{ s.category }} · {{ s.subcategory }}</td>
           <td>{{ s.line ?? '—' }}</td>
@@ -115,7 +115,7 @@
         <tbody>
           @for (p of state().pdvs; track p.id) {
             <tr>
-              <td>{{ p.id }} · {{ p.name }}</td>
+              <td><span class="whitespace-nowrap">{{ p.id }}</span> · {{ p.name }}</td>
               <td>{{ chainOf(p.id) }}</td>
               <td>
                 <select class="input" [attr.data-testid]="'hab-pdv-' + p.id" [ngModel]="pdvRule(svc.id, p.id)" (ngModelChange)="setPdvRule(svc.id, p.id, $event)">
@@ -164,7 +164,7 @@
       <thead><tr><th>Id</th><th>Servicio</th><th>Cadena</th><th class="num">Cadena / IT2EX</th></tr></thead>
       <tbody>
         @for (c of state().commissions; track c.id) {
-          <tr><td>{{ c.id }}</td><td>{{ serviceLabel(c.serviceId) }}</td><td>{{ chainLabel(c.chainId) }}</td><td class="num">{{ c.chainValue }} / {{ c.it2exValue }}</td></tr>
+          <tr><td><span class="whitespace-nowrap">{{ c.id }}</span></td><td>{{ serviceLabel(c.serviceId) }}</td><td>{{ chainLabel(c.chainId) }}</td><td class="num">{{ c.chainValue }} / {{ c.it2exValue }}</td></tr>
         }
       </tbody>
     </table></div>

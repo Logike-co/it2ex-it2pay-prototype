@@ -99,3 +99,28 @@ test('al imprimir, el comprobante sale centrado', async ({ page }) => {
   });
   expect(Math.abs(left - right)).toBeLessThan(40);
 });
+
+test('ningún código (CJ-S1-01, CAJ-S02, T-S1-01…) se parte en dos líneas', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginAndPay(page);
+  await page.getByTestId('btn-guia-demo').click();
+  for (const v of VIEWS) {
+    await page.getByTestId(`nav-${v}`).click();
+    await page.waitForTimeout(150);
+    const broken = await page.evaluate(() => {
+      const found: string[] = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.parentElement?.offsetParent) continue;
+        for (const m of (n.textContent ?? '').matchAll(/\b[A-Z]{1,5}(?:-[A-Z0-9]+)+\b/g)) {
+          const range = document.createRange();
+          range.setStart(n, m.index ?? 0);
+          range.setEnd(n, (m.index ?? 0) + m[0].length);
+          if (new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size > 1) found.push(m[0]);
+        }
+      }
+      return found;
+    });
+    expect(broken, v).toEqual([]);
+  }
+});

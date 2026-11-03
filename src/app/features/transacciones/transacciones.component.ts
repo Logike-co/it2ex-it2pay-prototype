@@ -10,11 +10,12 @@ import { SIM_PIPES } from '../../shared/pipes';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
 import { TxActionsComponent } from '../../shared/tx-actions.component';
 import { TraceBadgeComponent } from '../../shared/trace-badge.component';
+import { CodeTextComponent } from '../../shared/code-text.component';
 
 /** V07 — Consulta transaccional (F13, C01). */
 @Component({
   selector: 'app-transacciones',
-  imports: [TraceBadgeComponent, FormsModule, RouterLink, EmptyStateComponent, StatusBadgeComponent, TxActionsComponent, ...SIM_PIPES],
+  imports: [CodeTextComponent, TraceBadgeComponent, FormsModule, RouterLink, EmptyStateComponent, StatusBadgeComponent, TxActionsComponent, ...SIM_PIPES],
   templateUrl: './transacciones.component.html',
 })
 export class TransaccionesComponent {

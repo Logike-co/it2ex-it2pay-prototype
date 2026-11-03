@@ -9,6 +9,7 @@ import { DemoHudComponent } from './demo/demo-hud.component';
 import { DemoModeStore } from './demo/demo-mode.store';
 import { ViewTraceComponent } from './demo/view-trace.component';
 import { VIEWS } from './views';
+import { CodeTextComponent } from './shared/code-text.component';
 
 /**
  * Shell: banda de simulación, encabezado, menú de 12 vistas, reinicio, panel del presentador,
@@ -16,7 +17,7 @@ import { VIEWS } from './views';
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule, DemoHudComponent, ViewTraceComponent],
+  imports: [CodeTextComponent, RouterOutlet, RouterLink, RouterLinkActive, FormsModule, DemoHudComponent, ViewTraceComponent],
   templateUrl: './app.component.html',
 })
 export class AppComponent {

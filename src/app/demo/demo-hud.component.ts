@@ -5,6 +5,7 @@ import { VIEWS } from '../views';
 import { DemoModeStore } from './demo-mode.store';
 import { PresetId } from './demo-script';
 import { itemsTrace } from './traceability';
+import { CodeTextComponent } from '../shared/code-text.component';
 
 /**
  * Guía de demo en pantalla (workflow T §1.4-1, X01): paso actual del guion con acción,
@@ -14,6 +15,7 @@ import { itemsTrace } from './traceability';
  */
 @Component({
   selector: 'app-demo-hud',
+  imports: [CodeTextComponent],
   // El panel es un hijo directo de la fila del shell: se acopla a la derecha sin tapar la vista.
   host: { class: 'contents' },
   template: `@if (demo.hudOpen()) {
@@ -73,12 +75,12 @@ import { itemsTrace } from './traceability';
           <h3 class="mt-2 text-xs font-semibold text-muted uppercase">Qué hacer</h3>
           <ol class="ml-4 list-decimal">
             @for (a of s.actions; track $index) {
-              <li>{{ a }}</li>
+              <li><app-code-text [text]="a" /></li>
             }
           </ol>
 
           <h3 class="mt-2 text-xs font-semibold text-muted uppercase">Qué contar</h3>
-          <p class="italic" data-testid="guia-narrativa">«{{ s.say }}»</p>
+          <p class="italic" data-testid="guia-narrativa">«<app-code-text [text]="s.say" />»</p>
 
           <h3 class="mt-2 text-xs font-semibold text-muted uppercase">Qué debe verse</h3>
           <ul class="list-none p-0" data-testid="guia-checklist">
@@ -86,7 +88,7 @@ import { itemsTrace } from './traceability';
               <li>
                 <label class="flex items-start gap-2">
                   <input type="checkbox" class="mt-1" [checked]="isChecked($index)" (change)="toggleCheck($index)" />
-                  <span>{{ e }}</span>
+                  <span><app-code-text [text]="e" /></span>
                 </label>
               </li>
             }

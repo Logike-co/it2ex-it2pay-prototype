@@ -39,7 +39,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
         <tbody>
           @for (e of r.exceptions; track e.id) {
             <tr [attr.data-testid]="'excepcion-' + e.id">
-              <td class="font-mono text-xs">{{ e.id }}</td>
+              <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ e.id }}</span></td>
               <td data-testid="excepcion-tipo">{{ e.classification }}@if (e.reval?.inconsistency) {<br /><span class="text-xs text-muted">{{ e.reval?.inconsistency }}</span>}</td>
               <td>{{ itStatus(e) }} / {{ e.reval?.status ?? '—' }}</td>
               <td class="num">{{ e.itValue | money }}</td>
@@ -85,7 +85,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
       <h3 class="mt-4 mb-1 text-sm font-semibold">Excepciones resueltas</h3>
       <ul class="text-sm" data-testid="resueltas">
         @for (x of r.resolved; track x.txId) {
-          <li [attr.data-testid]="'resuelta-' + x.txId">{{ x.txId }} · {{ x.type }} · {{ x.resolution }}{{ x.note ? ' — ' + x.note : '' }} · {{ x.at | hora }}</li>
+          <li [attr.data-testid]="'resuelta-' + x.txId"><span class="whitespace-nowrap">{{ x.txId }}</span> · {{ x.type }} · {{ x.resolution }}{{ x.note ? ' — ' + x.note : '' }} · {{ x.at | hora }}</li>
         }
       </ul>
     }
@@ -98,7 +98,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
       <tbody>
         @for (row of r.rows; track row.id) {
           <tr>
-            <td class="font-mono text-xs">{{ row.id }}</td>
+            <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ row.id }}</span></td>
             <td>{{ itStatus(row) }}</td>
             <td class="num">{{ row.itValue | money }}</td>
             <td>{{ row.reval?.status ?? '—' }}</td>

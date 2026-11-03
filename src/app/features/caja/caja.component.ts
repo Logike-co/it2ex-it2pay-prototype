@@ -34,6 +34,7 @@ import { SimulatorStore } from '../../core/state/simulator.store';
 import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { SIM_PIPES } from '../../shared/pipes';
 import { TraceBadgeComponent } from '../../shared/trace-badge.component';
+import { CodeTextComponent } from '../../shared/code-text.component';
 
 /**
  * V05 — Terminal de caja: asistente de 4 pasos operable por teclado
@@ -42,7 +43,7 @@ import { TraceBadgeComponent } from '../../shared/trace-badge.component';
  */
 @Component({
   selector: 'app-caja',
-  imports: [TraceBadgeComponent, FormsModule, RouterLink, EmptyStateComponent, ...SIM_PIPES],
+  imports: [CodeTextComponent, TraceBadgeComponent, FormsModule, RouterLink, EmptyStateComponent, ...SIM_PIPES],
   templateUrl: './caja.component.html',
 })
 export class CajaComponent {

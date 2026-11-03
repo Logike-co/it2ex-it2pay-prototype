@@ -61,7 +61,7 @@ obligación Reval (simulado) = ingresos − retiros (por cadena y total)
       <thead><tr><th>PDV</th><th class="num">Pendiente por entregar</th></tr></thead>
       <tbody>
         @for (p of c.pendingByPdv; track p.pdvId) {
-          <tr [attr.data-testid]="'pendiente-' + p.pdvId"><td>{{ p.pdvId }}</td><td class="num">{{ p.value | money }}</td></tr>
+          <tr [attr.data-testid]="'pendiente-' + p.pdvId"><td><span class="whitespace-nowrap">{{ p.pdvId }}</span></td><td class="num">{{ p.value | money }}</td></tr>
         }
       </tbody>
     </table></div>
@@ -95,7 +95,7 @@ obligación Reval (simulado) = ingresos − retiros (por cadena y total)
         <tbody>
           @for (k of consignments(); track k.id) {
             <tr [attr.data-testid]="'consignacion-' + k.id">
-              <td>{{ k.id }}</td><td>{{ k.pdvId }} · {{ k.line }}</td><td class="num">{{ k.value | money }}</td><td class="text-xs">{{ k.bank }} · {{ k.support }}</td>
+              <td><span class="whitespace-nowrap">{{ k.id }}</span></td><td><span class="whitespace-nowrap">{{ k.pdvId }}</span> · {{ k.line }}</td><td class="num">{{ k.value | money }}</td><td class="text-xs">{{ k.bank }} · <span class="whitespace-nowrap">{{ k.support }}</span></td>
               <td data-testid="consignacion-estado">{{ k.status }}</td>
               <td class="whitespace-nowrap">
                 @if (k.status === 'Reportada') {

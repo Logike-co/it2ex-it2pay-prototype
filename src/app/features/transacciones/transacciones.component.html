@@ -66,9 +66,9 @@
               [attr.data-testid]="'fila-' + t.id"
               (click)="select(t.id)"
             >
-              <td class="font-mono text-xs">{{ t.id }}</td>
+              <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ t.id }}</span></td>
               <td>{{ t.at | hora }}</td>
-              <td class="whitespace-nowrap">{{ t.registerId }}</td>
+              <td class="whitespace-nowrap"><span class="whitespace-nowrap">{{ t.registerId }}</span></td>
               <td>{{ t.type | tipo }} · {{ serviceOf(t.serviceId) }}</td>
               <td>{{ t.referenceDisplay }}</td>
               <td class="num">{{ t.value | money }}</td>
@@ -84,12 +84,12 @@
 
   <section class="card @5xl:col-span-2" data-testid="detalle-transaccion">
     @if (selected(); as t) {
-      <h2 class="card-title">{{ t.id }} <app-status-badge [status]="t.status" /> <app-trace-badge [items]="['F13']" /></h2>
+      <h2 class="card-title"><span class="whitespace-nowrap">{{ t.id }}</span> <app-status-badge [status]="t.status" /> <app-trace-badge [items]="['F13']" /></h2>
       <dl class="grid grid-cols-2 gap-1 text-sm">
         <dt class="text-muted">Cadena</dt><dd>{{ chainOf(t.chainId) }}</dd>
-        <dt class="text-muted">Sucursal · PDV</dt><dd>{{ branchOf(t.branchId) }} · {{ t.pdvId }}</dd>
-        <dt class="text-muted">Caja · turno</dt><dd>{{ t.registerId }} · {{ t.shiftId }}</dd>
-        <dt class="text-muted">Operador</dt><dd>{{ t.operatorId }}</dd>
+        <dt class="text-muted">Sucursal · PDV</dt><dd>{{ branchOf(t.branchId) }} · <span class="whitespace-nowrap">{{ t.pdvId }}</span></dd>
+        <dt class="text-muted">Caja · turno</dt><dd><span class="whitespace-nowrap">{{ t.registerId }}</span> · <span class="whitespace-nowrap">{{ t.shiftId }}</span></dd>
+        <dt class="text-muted">Operador</dt><dd><span class="whitespace-nowrap">{{ t.operatorId }}</span></dd>
         <dt class="text-muted">Tipo · línea</dt><dd>{{ t.type | tipo }} · {{ t.line ?? '—' }}</dd>
         <dt class="text-muted">Convenio</dt><dd>{{ serviceOf(t.serviceId) }}</dd>
         <dt class="text-muted">Referencia</dt><dd>{{ t.referenceDisplay }}</dd>
@@ -97,7 +97,7 @@
         <dt class="text-muted">Autorización</dt><dd>{{ t.authorization ?? '—' }}</dd>
         <dt class="text-muted">Comisión (cadena / IT2EX)</dt>
         <dd>{{ t.chainCommission !== null ? t.chainCommission + ' / ' + t.it2exCommission : '—' }}{{ t.status !== 'APPROVED' && t.chainCommission !== null ? ' (no cuenta)' : '' }}</dd>
-        <dt class="text-muted">Clave idempotente</dt><dd class="font-mono text-xs">{{ t.idempotencyKey }}</dd>
+        <dt class="text-muted">Clave idempotente</dt><dd class="font-mono text-xs"><span class="whitespace-nowrap">{{ t.idempotencyKey }}</span></dd>
       </dl>
       <h3 class="mt-3 mb-1 text-sm font-semibold">Traza</h3>
       <p class="text-sm" data-testid="traza-detalle">
@@ -109,7 +109,7 @@
         }
       </p>
       @if (t.originalId) {
-        <p class="mt-2 text-sm">Reverso de <button type="button" class="underline" [attr.data-testid]="'enlace-' + t.originalId" (click)="select(t.originalId)">{{ t.originalId }}</button></p>
+        <p class="mt-2 text-sm">Reverso de <button type="button" class="underline" [attr.data-testid]="'enlace-' + t.originalId" (click)="select(t.originalId)"><span class="whitespace-nowrap">{{ t.originalId }}</span></button></p>
       }
       @for (r of t.reverseIds; track r) {
         <p class="mt-2 text-sm">Reverso vinculado: <button type="button" class="underline" [attr.data-testid]="'enlace-' + r" (click)="select(r)">{{ r }}</button></p>
@@ -139,7 +139,7 @@
     <thead><tr><th>{{ grouping() === 'caja' ? 'Caja' : 'Establecimiento' }}</th><th class="num">Transacciones</th><th class="num">Total</th></tr></thead>
     <tbody>
       @for (g of groups(); track g.key) {
-        <tr [attr.data-testid]="'grupo-' + g.key"><td>{{ g.label }}</td><td class="num">{{ g.count }}</td><td class="num">{{ g.total | money }}</td></tr>
+        <tr [attr.data-testid]="'grupo-' + g.key"><td><app-code-text [text]="g.label" /></td><td class="num">{{ g.count }}</td><td class="num">{{ g.total | money }}</td></tr>
       }
     </tbody>
   </table></div>

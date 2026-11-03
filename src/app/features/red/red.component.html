@@ -9,7 +9,7 @@
       <tbody>
         @for (c of state().chains; track c.id) {
           <tr [attr.data-testid]="'cadena-' + c.id">
-            <td class="font-mono text-xs">{{ c.id }}</td>
+            <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ c.id }}</span></td>
             <td>
               @if (editingChain() === c.id) {
                 <input class="input" data-testid="editar-nombre-cadena" [(ngModel)]="editName" />
@@ -44,12 +44,12 @@
       <tbody>
         @for (b of state().branches; track b.id) {
           <tr>
-            <td>{{ b.id }} · {{ b.name }}</td>
+            <td><span class="whitespace-nowrap">{{ b.id }}</span> · {{ b.name }}</td>
             <td>{{ chainOf(b.chainId) }}</td>
             <td>
               @for (p of state().pdvs; track p.id) {
                 @if (p.branchId === b.id) {
-                  <div>{{ p.id }} · {{ p.name }} <span class="text-xs text-muted">({{ p.activityType }}{{ p.active ? '' : ', inactivo' }})</span>
+                  <div><span class="whitespace-nowrap">{{ p.id }}</span> · {{ p.name }} <span class="text-xs text-muted">({{ p.activityType }}{{ p.active ? '' : ', inactivo' }})</span>
                     <button type="button" class="ml-1 text-xs underline" (click)="toggle('pdv', p.id, !p.active)">{{ p.active ? 'Inactivar' : 'Activar' }}</button>
                   </div>
                 }
@@ -92,11 +92,11 @@
       <tbody>
         @for (r of state().registers; track r.id) {
           <tr [attr.data-testid]="'caja-' + r.id">
-            <td class="font-mono text-xs">{{ r.id }}</td>
-            <td>{{ r.pdvId }} · {{ pdvOf(r.pdvId) }}</td>
-            <td>{{ r.currentShiftId ? 'Abierta (' + r.currentShiftId + ')' : 'Cerrada' }}</td>
-            <td class="text-xs">{{ cashiers(r.id) }}</td>
-            <td class="text-xs">{{ devices(r.id) }}</td>
+            <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ r.id }}</span></td>
+            <td><span class="whitespace-nowrap">{{ r.pdvId }}</span> · {{ pdvOf(r.pdvId) }}</td>
+            <td><app-code-text [text]="r.currentShiftId ? 'Abierta (' + r.currentShiftId + ')' : 'Cerrada'" /></td>
+            <td class="text-xs"><app-code-text [text]="cashiers(r.id)" /></td>
+            <td class="text-xs"><app-code-text [text]="devices(r.id)" /></td>
           </tr>
         }
       </tbody>
@@ -119,10 +119,10 @@
       <tbody>
         @for (u of state().users; track u.id) {
           <tr>
-            <td class="font-mono text-xs">{{ u.id }}</td>
+            <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ u.id }}</span></td>
             <td>{{ u.name }}</td>
             <td>{{ u.profile }}</td>
-            <td class="text-xs">{{ u.profile === 'Supervisor' ? 'Todas las cajas' : u.registerIds.join(', ') || '—' }}</td>
+            <td class="text-xs"><app-code-text [text]="u.profile === 'Supervisor' ? 'Todas las cajas' : u.registerIds.join(', ') || '—'" /></td>
           </tr>
         }
       </tbody>
@@ -166,7 +166,7 @@
         <thead><tr><th>Id</th><th>Caja</th><th>Tipo</th><th>Serial</th><th>Estado</th></tr></thead>
         <tbody>
           @for (d of state().devices; track d.id) {
-            <tr [attr.data-testid]="'dispositivo-' + d.id"><td class="font-mono text-xs">{{ d.id }}</td><td>{{ d.registerId }}</td><td>{{ d.type }}</td><td>{{ d.serial }}</td><td>{{ d.active ? 'Activo' : 'Inactivo' }}</td></tr>
+            <tr [attr.data-testid]="'dispositivo-' + d.id"><td class="font-mono text-xs"><span class="whitespace-nowrap">{{ d.id }}</span></td><td><span class="whitespace-nowrap">{{ d.registerId }}</span></td><td>{{ d.type }}</td><td><span class="whitespace-nowrap">{{ d.serial }}</span></td><td>{{ d.active ? 'Activo' : 'Inactivo' }}</td></tr>
           }
         </tbody>
       </table></div>

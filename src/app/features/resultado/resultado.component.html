@@ -4,7 +4,7 @@
   <div class="grid gap-4 @4xl:grid-cols-2 print:block">
     <section class="card no-print" data-testid="resultado">
       <h2 class="card-title">
-        <span data-testid="resultado-tx">{{ t.id }}</span>
+        <span data-testid="resultado-tx"><span class="whitespace-nowrap">{{ t.id }}</span></span>
         <app-status-badge [status]="t.status" data-testid="resultado-estado" />
         <span class="text-sm font-normal text-muted">{{ t.type | tipo }} · {{ service() }}</span>
         <app-trace-badge [items]="['F11', 'F12', 'F14']" />
@@ -15,7 +15,7 @@
         <div><dt class="text-muted">Referencia</dt><dd>{{ t.referenceDisplay }}</dd></div>
         <div><dt class="text-muted">Autorización (simulada)</dt><dd data-testid="resultado-autorizacion">{{ t.authorization ?? '—' }}</dd></div>
         <div><dt class="text-muted">Código</dt><dd data-testid="resultado-codigo">{{ t.responseCode ?? '—' }}</dd></div>
-        <div><dt class="text-muted">Clave idempotente</dt><dd class="font-mono text-xs">{{ t.idempotencyKey }}</dd></div>
+        <div><dt class="text-muted">Clave idempotente</dt><dd class="font-mono text-xs"><span class="whitespace-nowrap">{{ t.idempotencyKey }}</span></dd></div>
         <div class="col-span-2"><dt class="text-muted">Mensaje de Reval (simulado)</dt><dd data-testid="resultado-mensaje">{{ t.responseMessage }}</dd></div>
         @if (t.method === 'efectivo' && t.cashReceived !== null) {
           <div><dt class="text-muted">Recibido</dt><dd>{{ t.cashReceived | money }}</dd></div>
@@ -64,7 +64,7 @@
         <ul class="text-sm">
           @for (r of related(); track r.id) {
             <li>
-              <button type="button" class="underline" [attr.data-testid]="'vinculada-' + r.id" (click)="show(r.id)">{{ r.id }}</button>
+              <button type="button" class="underline" [attr.data-testid]="'vinculada-' + r.id" (click)="show(r.id)"><span class="whitespace-nowrap">{{ r.id }}</span></button>
               · {{ r.type | tipo }} · {{ r.status | estado }}
             </li>
           }

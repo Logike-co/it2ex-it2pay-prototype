@@ -6,8 +6,8 @@
   </app-empty-state>
 } @else {
   <div class="mb-3 flex flex-wrap items-center gap-3 text-sm" data-testid="caja-encabezado">
-    <span class="font-medium">{{ header() }}</span>
-    <span class="text-muted">· {{ cashierName() }} ({{ session().userId }})</span>
+    <span class="font-medium"><app-code-text [text]="header()" /></span>
+    <span class="text-muted">· {{ cashierName() }} (<span class="whitespace-nowrap">{{ session().userId }}</span>)</span>
     @if (shiftOpen()) {
       <span class="rounded bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">Abierta · {{ register()?.currentShiftId }}</span>
       <span class="text-muted">Efectivo esperado del turno: <strong class="text-ink" data-testid="efectivo-esperado">{{ expected() | money }}</strong></span>
@@ -271,7 +271,7 @@
         </ul>
         <h2 class="card-title mt-4">Última operación</h2>
         @if (lastTx(); as t) {
-          <p>{{ t.id }} · {{ t.status | estado }} · {{ t.value | money }}</p>
+          <p><span class="whitespace-nowrap">{{ t.id }}</span> · {{ t.status | estado }} · {{ t.value | money }}</p>
           <a class="btn mt-2" [routerLink]="['/caja/resultado']" [queryParams]="{ tx: t.id }">Ver resultado</a>
         } @else {
           <p class="text-muted">Sin operación reciente.</p>

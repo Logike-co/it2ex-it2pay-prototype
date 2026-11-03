@@ -10,7 +10,7 @@
       <tbody>
         @for (r of rows(); track r.pdvId + r.line) {
           <tr [attr.data-testid]="'cupo-' + r.pdvId + '-' + r.line">
-            <td>{{ r.pdvId }}</td>
+            <td><span class="whitespace-nowrap">{{ r.pdvId }}</span></td>
             <td>{{ chainOf(r.pdvId) }}</td>
             <td>{{ r.line }}</td>
             <td class="num">
@@ -87,7 +87,7 @@ alerta «Cupo bajo» si disponible &lt; 20 % del asignado</app-illustrative>
         <thead><tr><th>Alerta</th><th>Hora</th><th>PDV · caja</th><th>Servicio</th><th class="num">Intentado</th><th>Mensaje</th></tr></thead>
         <tbody>
           @for (a of alerts(); track a.id) {
-            <tr [attr.data-testid]="'alerta-' + a.id"><td>{{ a.id }}</td><td>{{ a.at | hora }}</td><td>{{ a.pdvId }} · {{ a.registerId }}</td><td>{{ serviceOf(a.serviceId) }}</td><td class="num">{{ a.attemptedValue | money }}</td><td class="text-xs">{{ a.message }}</td></tr>
+            <tr [attr.data-testid]="'alerta-' + a.id"><td><span class="whitespace-nowrap">{{ a.id }}</span></td><td>{{ a.at | hora }}</td><td><span class="whitespace-nowrap">{{ a.pdvId }}</span> · <span class="whitespace-nowrap">{{ a.registerId }}</span></td><td>{{ serviceOf(a.serviceId) }}</td><td class="num">{{ a.attemptedValue | money }}</td><td class="text-xs">{{ a.message }}</td></tr>
           }
         </tbody>
       </table></div>

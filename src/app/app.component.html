@@ -35,8 +35,8 @@
       </label>
       <div class="order-last w-full text-xs text-muted" data-testid="sesion-encabezado">
         @if (session(); as s) {
-          <span class="font-medium text-ink">{{ s.text }}</span>
-          · {{ s.user }} · Turno: {{ s.shift }}
+          <span class="font-medium text-ink"><app-code-text [text]="s.text" /></span>
+          · <app-code-text [text]="s.user" /> · Turno: <span class="whitespace-nowrap">{{ s.shift }}</span>
         } @else {
           Sin caja seleccionada
         }
@@ -161,7 +161,7 @@
           data-testid="aviso"
           role="alert"
         >
-          <span>{{ f.text }}</span>
+          <span><app-code-text [text]="f.text" /></span>
           <button type="button" class="text-xs underline" (click)="store.flash.set(null)">Cerrar aviso</button>
         </div>
       }

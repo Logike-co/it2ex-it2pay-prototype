@@ -19,7 +19,7 @@
             [disabled]="!!busy()"
             (click)="retry()"
           >
-            Reintentar con la misma clave {{ t.idempotencyKey }}
+            Reintentar con la misma clave <span class="whitespace-nowrap">{{ t.idempotencyKey }}</span>
           </button>
         }
       }
@@ -27,7 +27,7 @@
         @if (live(); as rv) {
           @if (rv.status === 'PENDING_VERIFICATION') {
             <span class="rounded bg-warning-soft px-2 py-1 text-xs font-semibold text-warning" data-testid="marca-reverso-pv">
-              Reverso en verificación ({{ rv.id }})
+              Reverso en verificación (<span class="whitespace-nowrap">{{ rv.id }}</span>)
             </span>
             <button
               type="button"
@@ -70,7 +70,7 @@
 
     @if (mode() === 'void') {
       <div class="rounded border border-line bg-surface-alt p-3 text-sm" data-testid="form-anular">
-        <p class="mb-2 font-semibold">Anular {{ t.id }} (sin crear una transacción nueva)</p>
+        <p class="mb-2 font-semibold">Anular <span class="whitespace-nowrap">{{ t.id }}</span> (sin crear una transacción nueva)</p>
         <label class="label" for="void-reason">Motivo (obligatorio)</label>
         <select id="void-reason" class="input mb-2" [(ngModel)]="reason" data-testid="motivo-anular">
           @for (r of reasons; track r) {
@@ -98,7 +98,7 @@
     @if (mode() === 'reverse') {
       <div class="rounded border border-line bg-surface-alt p-3 text-sm" data-testid="form-reversar">
         <p class="mb-2 font-semibold">
-          Reverso funcional de {{ t.id }}: transacción compensatoria vinculada
+          Reverso funcional de <span class="whitespace-nowrap">{{ t.id }}</span>: transacción compensatoria vinculada
         </p>
         <label class="label" for="rev-reason">Motivo (obligatorio)</label>
         <select id="rev-reason" class="input mb-2" [(ngModel)]="reason" data-testid="motivo-reversar">

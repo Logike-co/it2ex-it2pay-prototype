@@ -35,7 +35,7 @@
   @if (liquidations().length) {
     @for (l of liquidations(); track l.id) {
       <div class="mb-3 rounded border border-line p-3" [attr.data-testid]="'liquidacion-' + l.id">
-        <p class="text-sm font-semibold">{{ l.id }} · {{ l.status }} · periodo {{ l.period }} · {{ l.at | hora }}</p>
+        <p class="text-sm font-semibold"><span class="whitespace-nowrap">{{ l.id }}</span> · {{ l.status }} · periodo {{ l.period }} · {{ l.at | hora }}</p>
         <p class="text-sm">
           <span data-testid="snap-tx">{{ l.totals.count }}</span> transacciones · cadena <span data-testid="snap-cadena">{{ l.totals.chain | money }}</span> · IT2EX
           <span data-testid="snap-it2ex">{{ l.totals.it2ex | money }}</span> · total <span data-testid="snap-total">{{ l.totals.total | money }}</span>
@@ -73,10 +73,10 @@
         <div class="relative">
           <p class="text-center font-bold text-band">SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL</p>
           <p class="text-center text-xs font-semibold">Documento de ejemplo — sin validez fiscal</p>
-          <p class="mt-2 text-lg font-semibold" data-testid="cc-numero">{{ c.id }}</p>
+          <p class="mt-2 text-lg font-semibold" data-testid="cc-numero"><span class="whitespace-nowrap">{{ c.id }}</span></p>
           <p>Emisor: <span data-testid="cc-emisor">{{ c.issuer }}</span></p>
           <p>Receptor: <span data-testid="cc-receptor">{{ c.receiver }}</span></p>
-          <p>Periodo: {{ c.period }} · Liquidación de origen: {{ c.liquidationId }}</p>
+          <p>Periodo: {{ c.period }} · Liquidación de origen: <span class="whitespace-nowrap">{{ c.liquidationId }}</span></p>
           <div class="overflow-x-auto"><table class="table my-2">
             <thead><tr><th>Concepto</th><th class="num">Transacciones</th><th class="num">Valor</th></tr></thead>
             <tbody>

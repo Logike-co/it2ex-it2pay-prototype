@@ -106,7 +106,7 @@
       <tbody>
         @for (t of i.latest; track t.id) {
           <tr>
-            <td><a class="font-mono text-xs underline" routerLink="/transacciones" [queryParams]="{ tx: t.id }" [attr.data-testid]="'ultima-' + t.id">{{ t.id }}</a></td>
+            <td><a class="font-mono text-xs underline" routerLink="/transacciones" [queryParams]="{ tx: t.id }" [attr.data-testid]="'ultima-' + t.id"><span class="whitespace-nowrap">{{ t.id }}</span></a></td>
             <td>{{ t.at | hora }}</td>
             <td>{{ chainLabel(t.chainId) }}</td>
             <td>{{ t.type | tipo }} · {{ serviceOf(t.serviceId) }}</td>

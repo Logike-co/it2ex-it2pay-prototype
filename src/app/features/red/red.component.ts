@@ -6,11 +6,12 @@ import { branchName, cashiersOfRegister, chainName, pdvName } from '../../core/s
 import { SimulatorStore } from '../../core/state/simulator.store';
 import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { TraceBadgeComponent } from '../../shared/trace-badge.component';
+import { CodeTextComponent } from '../../shared/code-text.component';
 
 /** V03 — Administración de red (B01–B04). */
 @Component({
   selector: 'app-red',
-  imports: [TraceBadgeComponent, FormsModule, EmptyStateComponent],
+  imports: [CodeTextComponent, TraceBadgeComponent, FormsModule, EmptyStateComponent],
   templateUrl: './red.component.html',
 })
 export class RedComponent {

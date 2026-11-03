@@ -14,14 +14,14 @@
 
 @if (lastClosing(); as c) {
   <section class="card mb-4 max-w-xl" data-testid="resultado-cierre">
-    <h2 class="card-title">Cierre {{ c.id }} <app-legend /> <app-trace-badge [items]="['C02', 'C03']" /></h2>
+    <h2 class="card-title">Cierre <span class="whitespace-nowrap">{{ c.id }}</span> <app-legend /> <app-trace-badge [items]="['C02', 'C03']" /></h2>
     <dl class="grid grid-cols-2 gap-1 text-sm">
       <dt class="text-muted">Esperado en efectivo</dt><dd data-testid="cierre-esperado">{{ c.expectedByMethod.efectivo | money }}</dd>
       <dt class="text-muted">Declarado</dt><dd>{{ c.declaredCash | money }}</dd>
       <dt class="text-muted">Diferencia</dt><dd data-testid="cierre-diferencia">{{ c.difference | signed }}</dd>
       <dt class="text-muted">Clasificación</dt><dd class="font-semibold" data-testid="cierre-clasificacion">{{ c.classification }}</dd>
     </dl>
-    <p class="mt-2 text-sm text-muted">El turno {{ c.shiftId }} quedó cerrado y la caja {{ c.registerId }} no opera hasta abrir un turno nuevo.</p>
+    <p class="mt-2 text-sm text-muted">El turno <span class="whitespace-nowrap">{{ c.shiftId }}</span> quedó cerrado y la caja <span class="whitespace-nowrap">{{ c.registerId }}</span> no opera hasta abrir un turno nuevo.</p>
     <app-illustrative>diferencia = efectivo declarado − efectivo esperado · Cuadrada si 0 · Sobrante si &gt; 0 · Faltante si &lt; 0. No altera cupo ni compensación.</app-illustrative>
   </section>
 }
@@ -29,7 +29,7 @@
 @if (register()) {
   @if (shift(); as sh) {
     <section class="card mb-4" data-testid="cierre-turno">
-      <h2 class="card-title">Turno {{ sh.id }} · {{ cashier(sh.cashierId) }} <app-legend /></h2>
+      <h2 class="card-title">Turno <span class="whitespace-nowrap">{{ sh.id }}</span> · {{ cashier(sh.cashierId) }} <app-legend /></h2>
       <p class="mb-2 text-sm text-muted">Apertura {{ sh.openedAt | hora }} · base inicial {{ sh.baseCash | money }}</p>
       @if (expected(); as e) {
         <div class="overflow-x-auto"><table class="table mb-3 max-w-lg" data-testid="esperado-por-medio">
@@ -46,7 +46,7 @@
           <p class="font-semibold text-warning">{{ b }}</p>
           @for (t of pending(); track t.id) {
             <button type="button" class="btn mt-2 mr-2" [attr.data-testid]="'cierre-consultar-' + t.id" [disabled]="consulting()" (click)="consult(t.id)">
-              Consultar estado de {{ t.id }}
+              Consultar estado de <span class="whitespace-nowrap">{{ t.id }}</span>
             </button>
           }
         </div>
@@ -91,7 +91,7 @@ Las anuladas y reversadas no cuentan. El cierre se bloquea con transacciones en 
     <tbody>
       @for (c of history(); track c.id) {
         <tr [attr.data-testid]="'cierre-' + c.id">
-          <td>{{ c.id }}</td><td>{{ c.at | fechaHora }}{{ c.historical ? ' (fuera del periodo demo)' : '' }}</td><td>{{ c.registerId }} · {{ c.shiftId }}</td><td>{{ c.cashierId }}</td>
+          <td><span class="whitespace-nowrap">{{ c.id }}</span></td><td>{{ c.at | fechaHora }}{{ c.historical ? ' (fuera del periodo demo)' : '' }}</td><td><span class="whitespace-nowrap">{{ c.registerId }}</span> · <span class="whitespace-nowrap">{{ c.shiftId }}</span></td><td><span class="whitespace-nowrap">{{ c.cashierId }}</span></td>
           <td class="num">{{ c.expectedByMethod.efectivo | money }}</td><td class="num">{{ c.declaredCash | money }}</td><td class="num">{{ c.difference | signed }}</td><td>{{ c.classification }}</td>
         </tr>
       }
