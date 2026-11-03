@@ -51,7 +51,7 @@ npx playwright install chromium
 
 | Control | Cómo se usa | Qué hace |
 | :--- | :--- | :--- |
-| Guía de demo | Botón «Guía de demo» o `Ctrl+Shift+D` | Panel acoplado a la derecha con el paso actual del guion: qué hacer, qué contar y la checklist de lo que debe verse. Permite ir a cualquier paso o vista |
+| Guía de demo | Botón «Guía de demo» o `Ctrl+Shift+D` | Panel acoplado a la derecha con el paso actual del guion: qué hacer, qué contar y la checklist de lo que debe verse. Sigue a la pantalla: al cambiar de vista desde el menú pasa al paso del guion que la usa. Permite ir a cualquier paso o vista |
 | Escenarios precargados | Botones ESC-01, ESC-02 y ESC-03 en la guía | Reinician los datos de su escenario, fijan el panel del presentador y abren su guion: camino feliz (Supermercados), excepciones y discrepancias (Parqueaderos) y rechazo (Supermercados) |
 | Reinicio en 1 clic | `Ctrl+Shift+R` | Restaura el escenario activo sin diálogo de confirmación y vuelve al primer paso del guion |
 | Trazabilidad | Casilla «Trazabilidad» del encabezado | Muestra encima de cada vista y en los títulos de sus tarjetas la historia de usuario y el requerimiento que valida (`US-09 · RF-09`), con sus escenarios BDD. No sale en la impresión |

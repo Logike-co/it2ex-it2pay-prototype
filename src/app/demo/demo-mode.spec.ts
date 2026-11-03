@@ -1,12 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { routes } from '../app.routes';
 import { FixedClock } from '../core/simulation/clock';
 import { indicators } from '../core/simulation/selectors';
 import { SIM_CLOCK, SIM_LATENCY, SimulatorStore } from '../core/state/simulator.store';
 import { VIEWS } from '../views';
 import { DemoModeStore, viewOfUrl } from './demo-mode.store';
-import { PRESETS } from './demo-script';
+import { presetById, PRESETS, stepForView, stepViews } from './demo-script';
 import { ITEMS, itemsTrace, rfOf, VIEW_BDD, viewTrace } from './traceability';
 
 const DEMO_DAY = new Date(2026, 9, 25, 10, 0, 0);
@@ -85,6 +85,48 @@ describe('Guiones de la demo (X01, X03)', () => {
     expect(viewOfUrl('/caja/resultado?tx=TX-S-0001')).toBe('V06');
     expect(viewOfUrl('/inicio')).toBe('V01');
     expect(viewOfUrl('/no-existe')).toBeNull();
+  });
+});
+
+describe('La guía sigue a la pantalla', () => {
+  const esc01 = presetById('ESC-01').steps;
+  const esc02 = presetById('ESC-02').steps;
+
+  it('cada paso recorre su vista de arranque, las de sus ítems y el resultado si pasa por la caja', () => {
+    expect(stepViews(esc01[1]).sort()).toEqual(['V03', 'V04', 'V08']);
+    expect(stepViews(esc01[2]).sort()).toEqual(['V01', 'V05', 'V06']);
+    expect(stepViews(esc01[3]).sort()).toEqual(['V05', 'V06']);
+    expect(stepViews(esc01[6]).sort()).toEqual(['V10', 'V11', 'V12']);
+    // Ingresar con un cajero lleva a la caja: es parte del paso de ingreso.
+    expect(stepViews(esc02[0])).toContain('V05');
+  });
+
+  it('pasa al siguiente paso que usa la pantalla y, si ninguno adelante la usa, al anterior más cercano', () => {
+    expect(stepForView(esc01, 0, 'V04')).toBe(1);
+    expect(stepForView(esc01, 1, 'V01')).toBe(2);
+    expect(stepForView(esc01, 3, 'V06')).toBe(3);
+    expect(stepForView(esc01, 7, 'V03')).toBe(1);
+    expect(stepForView(esc02, 1, 'V04')).toBe(-1);
+  });
+
+  it('al navegar por el menú, el paso de la guía cambia al de la pantalla', async () => {
+    const { demo } = setup();
+    const router = TestBed.inject(Router);
+    demo.applyPreset('ESC-01');
+    await router.navigateByUrl('/convenios');
+    expect(demo.step().n).toBe(2);
+    expect(demo.viewInStep()).toBe(true);
+    await router.navigateByUrl('/cierre');
+    expect(demo.step().n).toBe(6);
+  });
+
+  it('en una pantalla fuera del guion conserva el paso y lo advierte', async () => {
+    const { demo } = setup();
+    const router = TestBed.inject(Router);
+    demo.applyPreset('ESC-02');
+    await router.navigateByUrl('/convenios');
+    expect(demo.step().n).toBe(1);
+    expect(demo.viewInStep()).toBe(false);
   });
 });
 

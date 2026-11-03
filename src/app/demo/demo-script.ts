@@ -5,6 +5,7 @@
  * ESC-01..03) de la iniciativa `upgrade-it2pay`. Los valores esperados son los del flow-map §6.7 y §6.8.
  */
 import { AuthOverride, ScenarioId } from '../core/simulation/model';
+import { ITEMS } from './traceability';
 
 export type PresetId = 'ESC-01' | 'ESC-02' | 'ESC-03';
 
@@ -270,3 +271,32 @@ const ESC_03: DemoPreset = {
 export const PRESETS: DemoPreset[] = [ESC_01, ESC_02, ESC_03];
 
 export const presetById = (id: PresetId): DemoPreset => PRESETS.find((p) => p.id === id) ?? ESC_01;
+
+/** Pantallas a las que lleva un ítem además de la suya: ingresar con un cajero (F02) abre la caja. */
+const LANDS_ON: Record<string, string[]> = { F02: ['V05'] };
+
+/**
+ * Pantallas que recorre un paso: la de arranque, las de sus ítems (y a las que estos llevan) y,
+ * si pasa por la caja, también el resultado (V05 → V06), donde termina toda operación.
+ */
+export function stepViews(step: DemoStep): string[] {
+  const views = new Set<string>([step.view]);
+  for (const id of step.items) {
+    const view = ITEMS[id]?.view;
+    if (view) views.add(view);
+    for (const extra of LANDS_ON[id] ?? []) views.add(extra);
+  }
+  if (views.has('V05')) views.add('V06');
+  return [...views];
+}
+
+/**
+ * Paso del guion que corresponde a una pantalla: el actual si la recorre; si no, el siguiente
+ * que la use y, si ninguno adelante la usa, el más cercano hacia atrás. -1 si no está en el guion.
+ */
+export function stepForView(steps: DemoStep[], current: number, view: string): number {
+  if (steps[current] && stepViews(steps[current]).includes(view)) return current;
+  for (let i = current + 1; i < steps.length; i++) if (stepViews(steps[i]).includes(view)) return i;
+  for (let i = current - 1; i >= 0; i--) if (stepViews(steps[i]).includes(view)) return i;
+  return -1;
+}

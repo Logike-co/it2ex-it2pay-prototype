@@ -2,7 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { SimulatorStore } from '../core/state/simulator.store';
 import { VIEWS } from '../views';
-import { DemoPreset, presetById, PresetId, PRESETS } from './demo-script';
+import { DemoPreset, presetById, PresetId, PRESETS, stepForView, stepViews } from './demo-script';
 
 const PREFS_KEY = 'it2pay-simulador:v1:modo-demo';
 
@@ -40,13 +40,35 @@ export class DemoModeStore {
     const steps = this.preset().steps;
     return steps[Math.min(this.stepIndex(), steps.length - 1)];
   });
+  /** La pantalla actual es una de las que recorre el paso en curso. */
+  readonly viewInStep = computed(() => {
+    const view = this.currentView();
+    return view !== null && stepViews(this.step()).includes(view);
+  });
 
   constructor() {
     this.router.events.subscribe((e) => {
       if (e instanceof NavigationEnd) {
-        this.currentView.set(viewOfUrl(e.urlAfterRedirects));
+        const view = viewOfUrl(e.urlAfterRedirects);
+        this.currentView.set(view);
+        this.followView(view);
       }
     });
+  }
+
+  /**
+   * La guía sigue a la pantalla: al navegar por el menú (o desde la propia vista) pasa al paso
+   * del guion que usa esa pantalla. Si la pantalla no está en el guion, el paso no cambia.
+   */
+  private followView(view: string | null): void {
+    if (view === null) return;
+    const steps = this.preset().steps;
+    const current = Math.min(this.stepIndex(), steps.length - 1);
+    const target = stepForView(steps, current, view);
+    if (target >= 0 && target !== current) {
+      this.stepIndex.set(target);
+      this.save();
+    }
   }
 
   toggleHud(): void {

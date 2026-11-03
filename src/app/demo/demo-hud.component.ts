@@ -58,10 +58,10 @@ import { itemsTrace } from './traceability';
             {{ demo.preset().id }} · Paso {{ s.n }} de {{ demo.preset().steps.length }} · {{ s.view }}
           </p>
           <h2 class="text-base font-bold" data-testid="guia-paso-titulo">{{ s.title }}</h2>
-          @if (demo.currentView() !== s.view) {
+          @if (!demo.viewInStep()) {
             <p class="mt-1 rounded bg-warning-soft px-2 py-1 text-xs" data-testid="guia-fuera-de-vista">
-              Este paso arranca en {{ s.view }}.
-              <button type="button" class="underline" data-testid="guia-ir-vista" (click)="demo.goTo(demo.stepIndex())">Ir a {{ s.view }}</button>
+              {{ demo.currentView() ?? 'Esta pantalla' }} no forma parte del guion de {{ demo.preset().id }}.
+              <button type="button" class="underline" data-testid="guia-ir-vista" (click)="demo.goTo(demo.stepIndex())">Volver a {{ s.view }}</button>
             </p>
           }
           @if (demo.showTrace()) {

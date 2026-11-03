@@ -70,14 +70,44 @@ test('X01: la guía recorre los pasos y navega a la vista de cada uno', async ({
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByTestId('guia-siguiente')).toBeDisabled();
 
-  // Fuera de la vista del paso, la guía lo advierte y ofrece volver.
-  await page.getByTestId('nav-V03').click();
-  await expect(page.getByTestId('guia-fuera-de-vista')).toContainText('V02');
-  await page.getByTestId('guia-ir-vista').click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  // La guía sigue a la pantalla: al ir a V04 por el menú pasa al paso que la usa.
+  await page.getByTestId('nav-V04').click();
+  await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Configurar la red');
+  await expect(page.getByTestId('guia-fuera-de-vista')).toBeHidden();
+  await page.getByTestId('nav-V09').click();
+  await expect(page.getByTestId('guia-paso-num')).toContainText('Paso 6 de 8');
 
   await page.getByTestId('guia-saltar-vista').selectOption('cupos');
   await expect(page).toHaveURL(/\/cupos$/);
+});
+
+test('X01: en una pantalla fuera del guion, la guía conserva el paso, lo advierte y ofrece volver', async ({ page }) => {
+  await applyPreset(page, 'ESC-02');
+  await page.getByTestId('nav-V04').click();
+  await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Ingresar a la caja del aeropuerto');
+  await expect(page.getByTestId('guia-fuera-de-vista')).toContainText('V04 no forma parte del guion de ESC-02');
+  await page.getByTestId('guia-ir-vista').click();
+  await expect(page).toHaveURL(/\/inicio$/);
+  await expect(page.getByTestId('guia-fuera-de-vista')).toBeHidden();
+});
+
+test('X01: la caja y su resultado no mueven la guía del paso en curso', async ({ page }) => {
+  await applyPreset(page, 'ESC-03');
+  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
+  // Ingresar lleva a la caja, que sigue siendo parte del paso 1.
+  await expect(page.getByTestId('guia-paso-num')).toContainText('Paso 1 de 4');
+  await expect(page.getByTestId('guia-fuera-de-vista')).toBeHidden();
+  await page.getByTestId('guia-siguiente').click();
+  await expect(page.getByTestId('guia-paso-num')).toContainText('Paso 2 de 4');
+  await page.getByTestId('buscar-servicio').fill('ENEL');
+  await page.keyboard.press('Enter');
+  await page.getByTestId('ref-0').fill('4500112100');
+  await page.keyboard.press('Enter');
+  await page.getByTestId('btn-continuar-2').click();
+  await page.getByTestId('efectivo-recibido').fill('100000');
+  await page.getByTestId('btn-autorizar').click();
+  await expect(page).toHaveURL(/resultado/);
+  await expect(page.getByTestId('guia-paso-num')).toContainText('Paso 2 de 4');
 });
 
 test('X02: Ctrl+Shift+R reinicia el escenario en 1 clic, sin diálogo y sin recargar la página', async ({ page }) => {
