@@ -1,0 +1,282 @@
+<h1 class="page-title mb-1">V05 · Terminal de caja</h1>
+
+@if (!register()) {
+  <app-empty-state title="Sin caja seleccionada" detail="Elija cadena, sucursal y caja en Inicio para operar.">
+    <a routerLink="/inicio" class="btn btn-primary">Ir a Inicio</a>
+  </app-empty-state>
+} @else {
+  <div class="mb-3 flex flex-wrap items-center gap-3 text-sm" data-testid="caja-encabezado">
+    <span class="font-medium">{{ header() }}</span>
+    <span class="text-muted">· {{ cashierName() }} ({{ session().userId }})</span>
+    @if (shiftOpen()) {
+      <span class="rounded bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">Abierta · {{ register()?.currentShiftId }}</span>
+      <span class="text-muted">Efectivo esperado del turno: <strong class="text-ink" data-testid="efectivo-esperado">{{ expected() | money }}</strong></span>
+    }
+  </div>
+
+  @if (!shiftOpen()) {
+    <div class="card max-w-xl" data-testid="caja-cerrada">
+      <p class="font-semibold text-error">Caja cerrada: abra un turno para operar</p>
+      <div class="mt-3 flex items-end gap-2">
+        <label>
+          <span class="label">Base inicial</span>
+          <input class="input w-40" type="number" min="0" [(ngModel)]="baseCash" data-testid="base-turno-caja" />
+        </label>
+        <button type="button" class="btn btn-primary" data-testid="btn-abrir-turno" (click)="openShift()">Abrir turno</button>
+      </div>
+    </div>
+  } @else {
+    <div class="mb-3 flex flex-wrap gap-2 text-xs text-muted no-print" data-testid="atajos">
+      <span><span class="kbd">F1</span> Nueva operación</span>
+      <span><span class="kbd">F2</span> Buscar convenio</span>
+      <span><span class="kbd">Enter</span> Avanzar</span>
+      <span><span class="kbd">F12</span> Autorizar</span>
+      <span><span class="kbd">F8</span> Imprimir comprobante</span>
+      <span><span class="kbd">Esc</span> Volver / cancelar</span>
+    </div>
+
+    <ol class="mb-4 flex flex-wrap gap-2 text-sm" aria-label="Pasos del asistente">
+      @for (label of ['1. Servicio y referencia', '2. Detalle', '3. Pago y autorización', '4. Comprobante']; track label; let i = $index) {
+        <li
+          class="rounded-full px-3 py-1"
+          [class]="step() === i + 1 ? 'bg-primary text-primary-contrast' : 'bg-surface text-muted border border-line'"
+          [attr.data-testid]="'paso-' + (i + 1)"
+        >
+          {{ label }}
+        </li>
+      }
+    </ol>
+
+    <div class="grid gap-4 lg:grid-cols-3">
+      <section class="card lg:col-span-2">
+        @if (step() === 1) {
+          <h2 class="card-title">Paso 1 de 4 · Servicio y referencia <app-trace-badge [items]="['F03', 'F04', 'F06', 'F07', 'F08']" /></h2>
+          <label class="mb-3 block">
+            <span class="label">Buscar convenio o servicio (F2)</span>
+            <input
+              #searchBox
+              data-search
+              class="input"
+              data-testid="buscar-servicio"
+              placeholder="Escriba parte del nombre y pulse Enter"
+              [(ngModel)]="search"
+            />
+          </label>
+          @if (catalog().length === 0) {
+            <p class="text-sm text-muted" data-testid="catalogo-vacio">Esta caja no tiene servicios habilitados.</p>
+          }
+          <div class="grid gap-3 md:grid-cols-3" data-testid="catalogo">
+            @for (line of lines; track line) {
+              <div>
+                <p class="mb-1 text-xs font-semibold text-muted" [attr.data-testid]="'linea-' + line">
+                  {{ line }} ({{ countByLine(line) }})
+                </p>
+                <ul class="flex flex-col gap-1">
+                  @for (c of filtered(line); track c.service.id) {
+                    <li>
+                      <button
+                        type="button"
+                        class="w-full rounded border px-2 py-1 text-left text-sm hover:bg-surface-alt"
+                        [class]="serviceId() === c.service.id ? 'border-primary bg-primary-soft' : 'border-line'"
+                        [attr.data-testid]="'servicio-' + c.service.id"
+                        (click)="selectService(c.service)"
+                      >
+                        {{ c.service.name }}
+                        @if (c.noQuota) {
+                          <span class="ml-1 rounded bg-warning-soft px-1 text-[10px] font-semibold text-warning">Sin cupo asignado</span>
+                        }
+                        @if (c.service.p2) {
+                          <span class="ml-1 text-[10px] text-muted">(P2)</span>
+                        }
+                      </button>
+                    </li>
+                  } @empty {
+                    <li class="text-xs text-muted">Sin servicios</li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+
+          @if (service(); as svc) {
+            <div class="mt-4 rounded border border-line bg-surface-alt p-3" data-testid="referencias">
+              <p class="mb-2 text-sm font-semibold">{{ svc.name }} · {{ describeReferences(svc) }}</p>
+              <div class="grid gap-2 md:grid-cols-2">
+                @for (r of svc.references; track r.name; let i = $index) {
+                  @if (r.options) {
+                    <label>
+                      <span class="label">{{ r.name }}</span>
+                      <select class="input" data-ref-input [attr.data-testid]="'ref-' + i" [(ngModel)]="refs[i]">
+                        @for (o of r.options; track o) {
+                          <option [value]="o">{{ o }}</option>
+                        }
+                      </select>
+                    </label>
+                  } @else {
+                    <label>
+                      <span class="label">{{ r.name }}</span>
+                      <input
+                        class="input"
+                        data-ref-input
+                        inputmode="numeric"
+                        [attr.maxlength]="r.maxLength"
+                        [attr.data-testid]="'ref-' + i"
+                        [(ngModel)]="refs[i]"
+                      />
+                    </label>
+                  }
+                }
+              </div>
+              <div class="mt-3 flex gap-2">
+                <button type="button" class="btn btn-primary" data-testid="btn-continuar-1" (click)="advance()">
+                  {{ svc.operationType === 'recaudo' ? 'Consultar obligación' : 'Continuar' }} <span class="kbd">Enter</span>
+                </button>
+                <button type="button" class="btn" (click)="newOperation()">Limpiar <span class="kbd">Esc</span></button>
+              </div>
+            </div>
+          }
+        }
+
+        @if (step() === 2 && service(); as svc) {
+          <h2 class="card-title">Paso 2 de 4 · Detalle de la operación <app-trace-badge [items]="['F05']" /></h2>
+          <p class="mb-2 text-sm">{{ svc.name }} · Referencia: {{ refs.join(' / ') }}</p>
+          @if (obligation(); as obl) {
+            <dl class="mb-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4" data-testid="obligacion">
+              <div><dt class="text-muted">Titular</dt><dd data-testid="obl-titular">{{ obl.holder }}</dd></div>
+              <div><dt class="text-muted">Valor adeudado</dt><dd data-testid="obl-valor">{{ obl.balance | money }}</dd></div>
+              <div><dt class="text-muted">Vencimiento</dt><dd data-testid="obl-vencimiento">{{ obl.dueDate }}{{ obl.dueDate < state().demoDate ? ' (vencida, admite pago extemporáneo)' : '' }}</dd></div>
+              <div><dt class="text-muted">Estado</dt><dd data-testid="obl-estado">{{ obl.status }}</dd></div>
+            </dl>
+            @if (svc.allowsPartial) {
+              <label class="block max-w-xs">
+                <span class="label">Abono (mínimo {{ svc.minPartial | money }}; saldo {{ obl.balance | money }})</span>
+                <input class="input" type="number" data-step2-input data-testid="valor" [(ngModel)]="value" />
+              </label>
+            } @else {
+              <p class="text-sm text-muted" data-testid="pago-total">Pago total: el convenio no admite pago parcial.</p>
+            }
+          } @else {
+            <div class="grid gap-3 md:grid-cols-2">
+              <label>
+                <span class="label">Valor{{ svc.range ? ' (' + (svc.range.min | money) + ' a ' + (svc.range.max | money) + ')' : '' }}</span>
+                <input class="input" type="number" data-step2-input data-testid="valor" [(ngModel)]="value" />
+              </label>
+              @if (svc.requiresOtp) {
+                <label>
+                  <span class="label">OTP ficticio (6 dígitos)</span>
+                  <input class="input" inputmode="numeric" maxlength="6" data-testid="otp" [(ngModel)]="otp" />
+                </label>
+              }
+            </div>
+            @if (svc.suggestedValues.length) {
+              <div class="mt-2 flex flex-wrap gap-2" data-testid="sugeridos">
+                @for (v of svc.suggestedValues; track v) {
+                  <button type="button" class="btn" [attr.data-testid]="'sugerido-' + v" (click)="setSuggested(v)">{{ v | money }}</button>
+                }
+              </div>
+            }
+          }
+          <div class="mt-4 flex gap-2">
+            <button type="button" class="btn btn-primary" data-continue data-testid="btn-continuar-2" (click)="advance()">
+              Continuar al pago <span class="kbd">Enter</span>
+            </button>
+            <button type="button" class="btn" (click)="back()">Volver <span class="kbd">Esc</span></button>
+          </div>
+        }
+
+        @if (step() === 3 && service(); as svc) {
+          <h2 class="card-title">Paso 3 de 4 · Pago y autorización <app-trace-badge [items]="['F09', 'F10', 'F11']" /></h2>
+          <p class="mb-3 text-sm">
+            {{ svc.name }} · {{ refs.join(' / ') }} · Valor
+            <strong data-testid="resumen-valor">{{ value | money }}</strong>
+            @if (isPartial()) {
+              <span class="ml-1 text-muted">(abono parcial)</span>
+            }
+          </p>
+          @if (isWithdrawal()) {
+            <p class="rounded bg-surface-alt px-3 py-2 text-sm" data-testid="retiro-efectivo">
+              Entregue {{ value | money }} en efectivo al cliente tras la aprobación (OTP ficticio validado por Reval (simulado)).
+            </p>
+          } @else {
+            <fieldset class="mb-3">
+              <legend class="label">Medio de pago</legend>
+              <div class="flex flex-wrap gap-2">
+                @for (m of methods; track m) {
+                  <label class="flex items-center gap-1 rounded border border-line px-2 py-1 text-sm">
+                    <input type="radio" name="metodo" [value]="m" [checked]="method === m" (change)="onMethod(m)" [attr.data-testid]="'medio-' + m" />
+                    {{ methodLabels[m] }}
+                  </label>
+                }
+              </div>
+            </fieldset>
+            @if (method === 'efectivo') {
+              <div class="grid max-w-md grid-cols-2 gap-3">
+                <label>
+                  <span class="label">Efectivo recibido</span>
+                  <input class="input" type="number" data-cash-input data-testid="efectivo-recibido" [(ngModel)]="cashReceived" />
+                </label>
+                <div>
+                  <span class="label">Cambio</span>
+                  @if (cashInsufficient()) {
+                    <p class="font-semibold text-error" data-testid="cambio">Efectivo insuficiente</p>
+                  } @else {
+                    <p class="text-lg font-semibold" data-testid="cambio">{{ change() | money }}</p>
+                  }
+                </div>
+              </div>
+            } @else {
+              <button type="button" class="btn" data-testid="btn-simular-medio" [disabled]="cardConfirmed" (click)="cardConfirmed = true">
+                {{ method === 'debito' || method === 'credito' ? 'Simular lectura en datáfono simulado' : 'Confirmar pago simulado' }}
+              </button>
+              @if (cardConfirmed) {
+                <span class="ml-2 text-sm text-success" data-testid="medio-confirmado">Medio confirmado (simulado)</span>
+              }
+            }
+          }
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-testid="btn-autorizar"
+              [disabled]="!canAuthorize()"
+              (click)="authorize()"
+            >
+              Autorizar y cobrar <span class="kbd">F12</span>
+            </button>
+            <button type="button" class="btn" [disabled]="sending()" (click)="back()">Volver <span class="kbd">Esc</span></button>
+            @if (sending()) {
+              <span class="text-sm text-muted" data-testid="enviando">Enviando a Reval (simulado)…</span>
+            }
+          </div>
+        }
+
+        @if (error(); as e) {
+          <p class="mt-3 rounded border border-error bg-error-soft px-3 py-2 text-sm text-error" data-testid="error-caja" role="alert">{{ e }}</p>
+        }
+      </section>
+
+      <aside class="card text-sm">
+        <h2 class="card-title">Cupo del PDV <app-trace-badge [items]="['B09', 'B10']" /></h2>
+        <ul class="flex flex-col gap-1">
+          @for (line of lines; track line) {
+            <li class="flex justify-between">
+              <span>{{ line }}</span>
+              @if (quotaAvailable(line); as q) {
+                <span class="tabular-nums">{{ q | money }}</span>
+              } @else {
+                <span class="text-muted">{{ quotaAvailable(line) === 0 ? '$ 0' : 'Sin cupo asignado' }}</span>
+              }
+            </li>
+          }
+        </ul>
+        <h2 class="card-title mt-4">Última operación</h2>
+        @if (lastTx(); as t) {
+          <p>{{ t.id }} · {{ t.status | estado }} · {{ t.value | money }}</p>
+          <a class="btn mt-2" [routerLink]="['/caja/resultado']" [queryParams]="{ tx: t.id }">Ver resultado</a>
+        } @else {
+          <p class="text-muted">Sin operación reciente.</p>
+        }
+      </aside>
+    </div>
+  }
+}

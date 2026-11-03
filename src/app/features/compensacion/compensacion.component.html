@@ -1,0 +1,115 @@
+<h1 class="page-title mb-3">V11 · Compensación y efectivo</h1>
+@let c = comp();
+
+<section class="card mb-4" data-testid="compensacion">
+  <h2 class="card-title">
+    Compensación y obligación frente a Reval (simulado) <app-legend /> <app-trace-badge [items]="['C08']" />
+  </h2>
+  <div class="mb-3 flex flex-wrap gap-3 text-sm" role="radiogroup" aria-label="Modalidad de compensación">
+    <label class="flex items-center gap-1">
+      <input type="radio" name="modalidad" data-testid="modalidad-separado" [checked]="c.mode === 'separado'" (change)="setMode('separado')" />
+      Comisiones facturadas por separado
+    </label>
+    <label class="flex items-center gap-1">
+      <input type="radio" name="modalidad" data-testid="modalidad-descontado" [checked]="c.mode === 'descontado'" (change)="setMode('descontado')" />
+      Comisiones descontadas del recaudo
+    </label>
+  </div>
+  <div class="grid gap-4 lg:grid-cols-3">
+    <div>
+      <p class="text-xs text-muted">Ingresos (recaudo confirmado)</p>
+      <p class="text-2xl font-semibold" data-testid="comp-ingresos">{{ c.income | money }}</p>
+      <ul class="text-sm">
+        @for (l of lines; track l) {
+          <li class="flex justify-between"><span>{{ l }}</span><span class="tabular-nums">{{ c.incomeByLine[l] | money }}</span></li>
+        }
+        <li class="flex justify-between"><span>Retiros</span><span class="tabular-nums" data-testid="comp-retiros">{{ c.withdrawals | money }}</span></li>
+      </ul>
+    </div>
+    <div>
+      <p class="text-xs text-muted">Obligación frente a Reval (simulado)</p>
+      <p class="text-2xl font-semibold" data-testid="comp-obligacion">{{ c.obligation | money }}</p>
+      <ul class="text-sm">
+        @for (o of c.obligationByChain; track o.chainId) {
+          <li class="flex justify-between" [attr.data-testid]="'obligacion-' + o.chainId"><span>{{ chainLabel(o.chainId) }}</span><span class="tabular-nums">{{ o.obligation | money }}</span></li>
+        }
+      </ul>
+      @if (c.mode === 'descontado') {
+        <p class="mt-2 text-sm">Neto a transferir a Reval (simulado): <strong data-testid="comp-neto">{{ c.netToTransfer | money }}</strong></p>
+      } @else {
+        <p class="mt-2 text-sm">Se transfiere la obligación; las comisiones van a cartera. Neto: <strong data-testid="comp-neto">{{ c.netToTransfer | money }}</strong></p>
+      }
+    </div>
+    <div>
+      <p class="text-xs text-muted">Comisiones por cobrar a Reval (simulado)</p>
+      <p class="text-sm">Cadena: <strong data-testid="comp-com-cadena">{{ c.chainCommission | money }}</strong> · IT2EX: <strong data-testid="comp-com-it2ex">{{ c.it2exCommission | money }}</strong></p>
+      <p class="mt-2 text-sm">En verificación (informativo): <strong data-testid="comp-verificacion">{{ c.inVerification | money }}</strong></p>
+      <p class="text-sm">Diferencias informativas de conciliación: <strong data-testid="comp-diferencias">{{ c.informativeDifferences | money }}</strong></p>
+    </div>
+  </div>
+  <app-illustrative>ingresos = Σ valor de TX aprobadas (recaudo, recarga, depósito) · retiros = Σ retiros aprobados
+obligación Reval (simulado) = ingresos − retiros (por cadena y total)
+«por separado»: se transfiere la obligación y las comisiones van a cartera
+«descontadas»: neto = obligación − comisión cadena − comisión IT2EX</app-illustrative>
+</section>
+
+<div class="grid gap-4 xl:grid-cols-2">
+  <section class="card" data-testid="efectivo">
+    <h2 class="card-title">Efectivo pendiente por entregar (C07) <app-legend /> <app-trace-badge [items]="['C07']" /></h2>
+    <p class="text-sm">Total pendiente por entregar: <strong class="text-lg" data-testid="pendiente-total">{{ c.pendingToDeliver | money }}</strong></p>
+    <table class="table my-2">
+      <thead><tr><th>PDV</th><th class="num">Pendiente por entregar</th></tr></thead>
+      <tbody>
+        @for (p of c.pendingByPdv; track p.pdvId) {
+          <tr [attr.data-testid]="'pendiente-' + p.pdvId"><td>{{ p.pdvId }}</td><td class="num">{{ p.value | money }}</td></tr>
+        }
+      </tbody>
+    </table>
+    <p class="text-sm">Efectivo entregado (consignaciones validadas): <strong data-testid="efectivo-entregado">{{ c.delivered | money }}</strong></p>
+    <p class="text-sm">Consignaciones por validar: <strong data-testid="por-validar">{{ c.toValidate | money }}</strong></p>
+    <p class="text-sm">De lo operado hoy: efectivo {{ c.cashIncome | money }} · otros medios {{ c.otherIncome | money }}</p>
+    <app-illustrative>pendiente por entregar (PDV) = Σ utilizado de sus cupos (modelo prepago)</app-illustrative>
+  </section>
+
+  <section class="card" data-testid="consignaciones">
+    <h2 class="card-title">Consignaciones ficticias (C06) <app-legend /> <app-trace-badge [items]="['C06']" /></h2>
+    <div class="mb-3 grid gap-2 md:grid-cols-4">
+      <select class="input" data-testid="con-pdv" [(ngModel)]="conPdv">
+        <option value="">— PDV —</option>
+        @for (p of state().pdvs; track p.id) {
+          <option [value]="p.id">{{ p.id }} · {{ p.name }}</option>
+        }
+      </select>
+      <select class="input" data-testid="con-linea" [(ngModel)]="conLine">
+        @for (l of lines; track l) {
+          <option [value]="l">{{ l }}</option>
+        }
+      </select>
+      <input class="input" type="number" placeholder="Valor" data-testid="con-valor" [(ngModel)]="conValue" />
+      <button type="button" class="btn btn-primary" data-testid="btn-consignar" (click)="report()">Registrar consignación</button>
+    </div>
+    @if (consignments().length) {
+      <div class="overflow-x-auto">
+      <table class="table">
+        <thead><tr><th>Id</th><th>PDV · línea</th><th class="num">Valor</th><th>Banco · soporte</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          @for (k of consignments(); track k.id) {
+            <tr [attr.data-testid]="'consignacion-' + k.id">
+              <td>{{ k.id }}</td><td>{{ k.pdvId }} · {{ k.line }}</td><td class="num">{{ k.value | money }}</td><td class="text-xs">{{ k.bank }} · {{ k.support }}</td>
+              <td data-testid="consignacion-estado">{{ k.status }}</td>
+              <td class="whitespace-nowrap">
+                @if (k.status === 'Reportada') {
+                  <button type="button" class="btn" [attr.data-testid]="'validar-' + k.id" (click)="validate(k.id)">Validar (banco simulado)</button>
+                  <button type="button" class="btn" [attr.data-testid]="'rechazar-' + k.id" (click)="reject(k.id)">Rechazar</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      </div>
+    } @else {
+      <app-empty-state title="Sin consignaciones" />
+    }
+  </section>
+</div>

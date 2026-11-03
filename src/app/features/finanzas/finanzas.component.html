@@ -1,0 +1,98 @@
+<h1 class="page-title mb-3">V12 · Gestión financiera</h1>
+
+<section class="card mb-4" data-testid="liquidacion-viva">
+  <h2 class="card-title">Comisiones del periodo demo (vivo) <app-legend /> <app-trace-badge [items]="['C09']" /></h2>
+  @if (rows().length) {
+    <table class="table">
+      <thead><tr><th>Cadena</th><th>Servicio</th><th class="num">Transacciones</th><th class="num">Comisión cadena</th><th class="num">Comisión IT2EX</th></tr></thead>
+      <tbody>
+        @for (r of rows(); track r.chainId + r.serviceId) {
+          <tr [attr.data-testid]="'liq-' + r.chainId + '-' + r.serviceId">
+            <td>{{ chainLabel(r.chainId) }}</td><td>{{ serviceLabel(r.serviceId) }}</td><td class="num">{{ r.count }}</td>
+            <td class="num">{{ r.chainCommission | money }}</td><td class="num">{{ r.it2exCommission | money }}</td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr class="font-semibold" data-testid="liq-totales">
+          <td colspan="2">Total</td>
+          <td class="num" data-testid="liq-total-tx">{{ totals().count }}</td>
+          <td class="num" data-testid="liq-total-cadena">{{ totals().chain | money }}</td>
+          <td class="num" data-testid="liq-total-it2ex">{{ totals().it2ex | money }}</td>
+        </tr>
+        <tr><td colspan="4">Total comisiones</td><td class="num" data-testid="liq-total">{{ totals().total | money }}</td></tr>
+      </tfoot>
+    </table>
+  } @else {
+    <app-empty-state title="Sin transacciones vigentes en el periodo demo" />
+  }
+  <button type="button" class="btn btn-primary mt-3" data-testid="btn-liquidar" (click)="liquidate()">Liquidar periodo demo</button>
+  <app-illustrative>Cada transacción aprobada que no sea reverso genera una comisión fija para la cadena y otra para IT2EX (por defecto 400 / 200), congelada al aprobar. Anuladas, reversadas, rechazadas y en verificación no generan comisión.</app-illustrative>
+</section>
+
+<section class="card mb-4" data-testid="liquidaciones">
+  <h2 class="card-title">Liquidaciones (snapshots) <app-legend /></h2>
+  @if (liquidations().length) {
+    @for (l of liquidations(); track l.id) {
+      <div class="mb-3 rounded border border-line p-3" [attr.data-testid]="'liquidacion-' + l.id">
+        <p class="text-sm font-semibold">{{ l.id }} · {{ l.status }} · periodo {{ l.period }} · {{ l.at | hora }}</p>
+        <p class="text-sm">
+          <span data-testid="snap-tx">{{ l.totals.count }}</span> transacciones · cadena <span data-testid="snap-cadena">{{ l.totals.chain | money }}</span> · IT2EX
+          <span data-testid="snap-it2ex">{{ l.totals.it2ex | money }}</span> · total <span data-testid="snap-total">{{ l.totals.total | money }}</span>
+        </p>
+      </div>
+    }
+  } @else {
+    <app-empty-state title="Sin liquidaciones" detail="Pulse «Liquidar periodo demo» para congelar un snapshot ilustrativo." />
+  }
+</section>
+
+<div class="grid gap-4 xl:grid-cols-2">
+  <section class="card" data-testid="cartera">
+    <h2 class="card-title">Cartera y saldos pendientes (C10 · P2) <app-legend /> <app-trace-badge [items]="['C10']" /></h2>
+    <table class="table">
+      <thead><tr><th>Concepto</th><th>Deudor → acreedor</th><th>Antigüedad</th><th class="num">Valor</th></tr></thead>
+      <tbody>
+        @for (p of portfolio(); track p.concept + p.aging) {
+          <tr><td>{{ p.concept }}</td><td>{{ p.debtor }} → {{ p.creditor }}</td><td>{{ p.aging }}{{ p.origin === 'vivo' ? ' (vivo)' : '' }}</td><td class="num">{{ p.value | money }}</td></tr>
+        }
+        <tr class="font-semibold"><td colspan="3">Total comisión IT2EX por cobrar</td><td class="num" data-testid="cartera-it2ex">{{ portfolioTotal('Comisión IT2EX') | money }}</td></tr>
+        <tr class="font-semibold"><td colspan="3">Total comisión de cadenas por cobrar</td><td class="num" data-testid="cartera-cadenas">{{ portfolioTotal('Comisión de cadenas') | money }}</td></tr>
+        <tr><td colspan="3">Pendiente por entregar de las cadenas</td><td class="num" data-testid="cartera-pendiente">{{ pending() | money }}</td></tr>
+      </tbody>
+    </table>
+    <app-illustrative>Cartera = saldos precargados por antigüedad + comisiones vivas del periodo demo.</app-illustrative>
+  </section>
+
+  <section class="card" data-testid="cuenta-cobro">
+    <h2 class="card-title">Cuenta de cobro de ejemplo (C11 · P2) <app-legend /> <app-trace-badge [items]="['C11']" /></h2>
+    <button type="button" class="btn btn-primary mb-3" data-testid="btn-cuenta-cobro" (click)="generateCc()">Generar cuenta de cobro de ejemplo</button>
+    @if (cc(); as c) {
+      <article class="relative overflow-hidden rounded border-2 border-dashed border-ink bg-white p-4 text-sm" data-testid="documento-cc">
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0 flex items-center justify-center text-7xl font-black text-band/15 select-none" style="transform: rotate(-30deg)">DEMO</div>
+        <div class="relative">
+          <p class="text-center font-bold text-band">SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL</p>
+          <p class="text-center text-xs font-semibold">Documento de ejemplo — sin validez fiscal</p>
+          <p class="mt-2 text-lg font-semibold" data-testid="cc-numero">{{ c.id }}</p>
+          <p>Emisor: <span data-testid="cc-emisor">{{ c.issuer }}</span></p>
+          <p>Receptor: <span data-testid="cc-receptor">{{ c.receiver }}</span></p>
+          <p>Periodo: {{ c.period }} · Liquidación de origen: {{ c.liquidationId }}</p>
+          <table class="table my-2">
+            <thead><tr><th>Concepto</th><th class="num">Transacciones</th><th class="num">Valor</th></tr></thead>
+            <tbody>
+              @for (it of c.items; track it.concept) {
+                <tr><td data-testid="cc-concepto">{{ it.concept }}</td><td class="num">{{ it.quantity }}</td><td class="num">{{ it.value | money }}</td></tr>
+              }
+            </tbody>
+          </table>
+          <p class="font-semibold">Total: <span data-testid="cc-total">{{ c.total | money }}</span></p>
+          <p class="text-xs">Impuestos: no calculados en la simulación</p>
+          <p class="mt-2 text-center font-bold text-band">SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL</p>
+        </div>
+      </article>
+    } @else {
+      <app-empty-state title="Sin cuenta de cobro" detail="Se genera desde la última liquidación: IT2EX → Reval (simulado) por la comisión IT2EX." />
+    }
+    <app-illustrative>Cuenta de cobro de ejemplo: IT2EX S.A.S. (datos ficticios) → Reval (simulado), por la comisión IT2EX de una liquidación. Sin impuestos.</app-illustrative>
+  </section>
+</div>

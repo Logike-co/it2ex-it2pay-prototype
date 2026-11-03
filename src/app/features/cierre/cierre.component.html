@@ -1,0 +1,100 @@
+<h1 class="page-title mb-3">V09 · Cierre de caja</h1>
+
+<section class="card mb-4 max-w-xl">
+  <label>
+    <span class="label">Caja a cerrar</span>
+    <select class="input" data-testid="cierre-caja" [ngModel]="registerId()" (ngModelChange)="registerId.set($event); lastClosing.set(null)">
+      <option value="">— Elija una caja —</option>
+      @for (r of state().registers; track r.id) {
+        <option [value]="r.id">{{ r.id }} · {{ r.currentShiftId ? 'Abierta (' + r.currentShiftId + ')' : 'Cerrada' }}</option>
+      }
+    </select>
+  </label>
+</section>
+
+@if (lastClosing(); as c) {
+  <section class="card mb-4 max-w-xl" data-testid="resultado-cierre">
+    <h2 class="card-title">Cierre {{ c.id }} <app-legend /> <app-trace-badge [items]="['C02', 'C03']" /></h2>
+    <dl class="grid grid-cols-2 gap-1 text-sm">
+      <dt class="text-muted">Esperado en efectivo</dt><dd data-testid="cierre-esperado">{{ c.expectedByMethod.efectivo | money }}</dd>
+      <dt class="text-muted">Declarado</dt><dd>{{ c.declaredCash | money }}</dd>
+      <dt class="text-muted">Diferencia</dt><dd data-testid="cierre-diferencia">{{ c.difference | signed }}</dd>
+      <dt class="text-muted">Clasificación</dt><dd class="font-semibold" data-testid="cierre-clasificacion">{{ c.classification }}</dd>
+    </dl>
+    <p class="mt-2 text-sm text-muted">El turno {{ c.shiftId }} quedó cerrado y la caja {{ c.registerId }} no opera hasta abrir un turno nuevo.</p>
+    <app-illustrative>diferencia = efectivo declarado − efectivo esperado · Cuadrada si 0 · Sobrante si &gt; 0 · Faltante si &lt; 0. No altera cupo ni compensación.</app-illustrative>
+  </section>
+}
+
+@if (register()) {
+  @if (shift(); as sh) {
+    <section class="card mb-4" data-testid="cierre-turno">
+      <h2 class="card-title">Turno {{ sh.id }} · {{ cashier(sh.cashierId) }} <app-legend /></h2>
+      <p class="mb-2 text-sm text-muted">Apertura {{ sh.openedAt | hora }} · base inicial {{ sh.baseCash | money }}</p>
+      @if (expected(); as e) {
+        <table class="table mb-3 max-w-lg" data-testid="esperado-por-medio">
+          <thead><tr><th>Medio de pago</th><th class="num">Esperado</th></tr></thead>
+          <tbody>
+            @for (m of methods; track m) {
+              <tr [attr.data-testid]="'esperado-' + m"><td>{{ methodLabels[m] }}</td><td class="num">{{ e[m] | money }}</td></tr>
+            }
+          </tbody>
+        </table>
+      }
+      @if (blockMessage(); as b) {
+        <div class="mb-3 rounded border border-warning bg-warning-soft p-3 text-sm" data-testid="cierre-bloqueado">
+          <p class="font-semibold text-warning">{{ b }}</p>
+          @for (t of pending(); track t.id) {
+            <button type="button" class="btn mt-2 mr-2" [attr.data-testid]="'cierre-consultar-' + t.id" [disabled]="consulting()" (click)="consult(t.id)">
+              Consultar estado de {{ t.id }}
+            </button>
+          }
+        </div>
+      }
+      <div class="grid max-w-lg gap-2 md:grid-cols-2">
+        <label>
+          <span class="label">Efectivo declarado (conteo)</span>
+          <input class="input" type="number" data-testid="cierre-declarado" [(ngModel)]="declared" />
+        </label>
+        <label>
+          <span class="label">Observación</span>
+          <input class="input" data-testid="cierre-observacion" [(ngModel)]="observation" />
+        </label>
+      </div>
+      @if (declared !== null && declared !== undefined) {
+        <p class="mt-2 text-sm">Diferencia previa: <strong>{{ diffOf() | signed }}</strong></p>
+      }
+      <button
+        type="button"
+        class="btn btn-primary mt-3"
+        data-testid="btn-confirmar-cierre"
+        [disabled]="!!blockMessage() || declared === null || declared === undefined"
+        (click)="confirm()"
+      >
+        Confirmar cierre
+      </button>
+      <app-illustrative>efectivo esperado = base inicial + Σ efectivo de TX aprobadas del turno (recaudo, recarga, depósito) − Σ retiros aprobados del turno
+otro medio = Σ valor de TX aprobadas del turno con ese medio
+Las anuladas y reversadas no cuentan. El cierre se bloquea con transacciones en verificación.</app-illustrative>
+    </section>
+  } @else {
+    <app-empty-state title="Caja cerrada" detail="Esta caja no tiene turno abierto. Abra uno desde Inicio o desde la terminal de caja." />
+  }
+} @else {
+  <app-empty-state title="Elija una caja para revisar su cierre" />
+}
+
+<section class="card mt-4" data-testid="historial-cierres">
+  <h2 class="card-title">Historial de cierres <app-legend /></h2>
+  <table class="table">
+    <thead><tr><th>Cierre</th><th>Fecha</th><th>Caja · turno</th><th>Cajero</th><th class="num">Esperado</th><th class="num">Declarado</th><th class="num">Diferencia</th><th>Clasificación</th></tr></thead>
+    <tbody>
+      @for (c of history(); track c.id) {
+        <tr [attr.data-testid]="'cierre-' + c.id">
+          <td>{{ c.id }}</td><td>{{ c.at | fechaHora }}{{ c.historical ? ' (fuera del periodo demo)' : '' }}</td><td>{{ c.registerId }} · {{ c.shiftId }}</td><td>{{ c.cashierId }}</td>
+          <td class="num">{{ c.expectedByMethod.efectivo | money }}</td><td class="num">{{ c.declaredCash | money }}</td><td class="num">{{ c.difference | signed }}</td><td>{{ c.classification }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</section>

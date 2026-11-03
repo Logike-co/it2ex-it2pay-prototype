@@ -1,0 +1,54 @@
+<article
+  data-testid="comprobante"
+  class="relative mx-auto max-w-sm overflow-hidden rounded-md border-2 border-dashed border-ink bg-white p-4 font-mono text-xs leading-relaxed text-ink"
+>
+  <div
+    aria-hidden="true"
+    data-testid="marca-agua"
+    class="pointer-events-none absolute inset-0 flex items-center justify-center text-7xl font-black tracking-widest text-band/15 select-none"
+    style="transform: rotate(-30deg)"
+  >
+    DEMO
+  </div>
+  <div class="relative">
+    <p class="text-center text-sm font-bold">IT2Pay · COMPROBANTE DEMO</p>
+    <p class="text-center font-bold text-band" data-testid="leyenda-cabecera">
+      SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL
+    </p>
+    <hr class="my-2 border-dashed border-ink" />
+    <p>Cadena: {{ chain() }} · {{ branch() }}</p>
+    <p>
+      PDV: {{ tx().pdvId }} · Caja: {{ tx().registerId }} · Cajero:
+      {{ tx().operatorId }}
+    </p>
+    <p>Fecha y hora: {{ tx().at | fechaHora }}</p>
+    <p>
+      Operación: {{ tx().type | tipo }}
+      @if (tx().reverseKind) {
+        ({{ tx().reverseKind }})
+      }
+      · Servicio: {{ service() }}
+    </p>
+    <p>Referencia: {{ tx().referenceDisplay }}</p>
+    <p>Valor: {{ tx().value | money }} · Medio: {{ tx().method | medio }}</p>
+    @if (tx().method === 'efectivo' && tx().cashReceived !== null) {
+      <p>
+        Recibido: {{ tx().cashReceived | money }} · Cambio:
+        {{ tx().change | money }}
+      </p>
+    }
+    <p>Autorización (simulada): {{ tx().authorization ?? '—' }}</p>
+    <p>Transacción: {{ tx().id }} · Estado: {{ tx().status | estado }}</p>
+    @if (tx().voidInfo; as v) {
+      <p>Anulación: {{ v.reason }} · Autorizó: {{ v.authorizedBy }}</p>
+    }
+    @if (tx().originalId) {
+      <p>Reverso de: {{ tx().originalId }}</p>
+    }
+    <p>Autorizador: Reval (simulado)</p>
+    <hr class="my-2 border-dashed border-ink" />
+    <p class="text-center font-bold text-band" data-testid="leyenda-pie">
+      SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL
+    </p>
+  </div>
+</article>

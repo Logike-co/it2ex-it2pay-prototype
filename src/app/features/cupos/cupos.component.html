@@ -1,0 +1,98 @@
+<h1 class="page-title mb-3">V08 · Cupos y riesgo</h1>
+
+<section class="card mb-4 overflow-x-auto" data-testid="tabla-cupos">
+  <h2 class="card-title">Cupo por PDV y línea de negocio <app-legend /> <app-trace-badge [items]="['B09']" /></h2>
+  @if (rows().length) {
+    <table class="table">
+      <thead>
+        <tr><th>PDV</th><th>Cadena</th><th>Línea</th><th class="num">Asignado</th><th class="num">Utilizado</th><th class="num">En verificación</th><th class="num">Disponible</th><th class="num">% uso</th><th>Alerta</th></tr>
+      </thead>
+      <tbody>
+        @for (r of rows(); track r.pdvId + r.line) {
+          <tr [attr.data-testid]="'cupo-' + r.pdvId + '-' + r.line">
+            <td>{{ r.pdvId }}</td>
+            <td>{{ chainOf(r.pdvId) }}</td>
+            <td>{{ r.line }}</td>
+            <td class="num">
+              <div class="flex items-center justify-end gap-1">
+                <input
+                  class="input w-32 text-right"
+                  type="number"
+                  [attr.data-testid]="'asignado-' + r.pdvId + '-' + r.line"
+                  [ngModel]="editValue(r.pdvId, r.line, r.assigned)"
+                  (ngModelChange)="setEdit(r.pdvId, r.line, $event)"
+                />
+                <button type="button" class="btn" [attr.data-testid]="'guardar-' + r.pdvId + '-' + r.line" (click)="save(r.pdvId, r.line, r.assigned)">Guardar</button>
+              </div>
+            </td>
+            <td class="num" data-testid="utilizado">{{ r.used | money }}</td>
+            <td class="num" data-testid="en-verificacion">{{ r.inVerification | money }}</td>
+            <td class="num" data-testid="disponible">{{ r.available | money }}</td>
+            <td class="num">{{ r.usage | pct }}</td>
+            <td>
+              @if (r.alert) {
+                <span class="rounded bg-error-soft px-2 py-0.5 text-xs font-semibold text-error" data-testid="alerta-cupo">Cupo bajo</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <app-empty-state title="Sin cupos definidos" />
+  }
+  <app-illustrative>consumo(PDV, línea) = Σ valor de TX aprobadas (recaudo, recarga, depósito)
+liberaciones = Σ consignaciones validadas + Σ retiros aprobados (Corresponsalía)
+utilizado = max(0, consumo inicial + consumo − liberaciones)
+en verificación = Σ valor de TX en verificación
+disponible = asignado − utilizado − en verificación
+alerta «Cupo bajo» si disponible &lt; 20 % del asignado</app-illustrative>
+</section>
+
+<div class="grid gap-4 xl:grid-cols-2">
+  <section class="card" data-testid="definir-cupo">
+    <h2 class="card-title">Definir cupo (B08) <app-legend /> <app-trace-badge [items]="['B08']" /></h2>
+    <div class="grid gap-2 md:grid-cols-4">
+      <select class="input" data-testid="nuevo-cupo-pdv" [(ngModel)]="newPdv">
+        <option value="">— PDV —</option>
+        @for (p of state().pdvs; track p.id) {
+          <option [value]="p.id">{{ p.id }} · {{ p.name }}</option>
+        }
+      </select>
+      <select class="input" data-testid="nuevo-cupo-linea" [(ngModel)]="newLine">
+        @for (l of lines; track l) {
+          <option [value]="l">{{ l }}</option>
+        }
+      </select>
+      <input class="input" type="number" data-testid="nuevo-cupo-valor" [(ngModel)]="newAssigned" />
+      <button type="button" class="btn btn-primary" data-testid="btn-definir-cupo" (click)="define()">Definir cupo</button>
+    </div>
+    <h3 class="mt-4 mb-1 text-sm font-semibold">Consolidado por cadena</h3>
+    <table class="table">
+      <thead><tr><th>Cadena</th><th class="num">Asignado</th><th class="num">Utilizado</th><th class="num">En verificación</th><th class="num">Disponible</th></tr></thead>
+      <tbody>
+        @for (c of chains(); track c.id) {
+          <tr [attr.data-testid]="'consolidado-' + c.id">
+            <td>{{ c.name }}</td><td class="num">{{ c.cons.assigned | money }}</td><td class="num" data-testid="consolidado-utilizado">{{ c.cons.used | money }}</td><td class="num">{{ c.cons.inVerification | money }}</td><td class="num">{{ c.cons.available | money }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card" data-testid="alertas-cupo">
+    <h2 class="card-title">Bloqueos por cupo (B10 · P2) <app-legend /> <app-trace-badge [items]="['B10']" /></h2>
+    @if (alerts().length) {
+      <table class="table">
+        <thead><tr><th>Alerta</th><th>Hora</th><th>PDV · caja</th><th>Servicio</th><th class="num">Intentado</th><th>Mensaje</th></tr></thead>
+        <tbody>
+          @for (a of alerts(); track a.id) {
+            <tr [attr.data-testid]="'alerta-' + a.id"><td>{{ a.id }}</td><td>{{ a.at | hora }}</td><td>{{ a.pdvId }} · {{ a.registerId }}</td><td>{{ serviceOf(a.serviceId) }}</td><td class="num">{{ a.attemptedValue | money }}</td><td class="text-xs">{{ a.message }}</td></tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <app-empty-state title="Sin bloqueos por cupo" detail="Un pago que supere el disponible se bloquea antes de autorizar y queda registrado aquí." />
+    }
+  </section>
+</div>

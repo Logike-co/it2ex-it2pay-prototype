@@ -1,0 +1,130 @@
+@if (tx(); as t) {
+  <div class="flex flex-col gap-2 no-print" data-testid="acciones-tx">
+    <div class="flex flex-wrap gap-2">
+      @if (t.status === 'PENDING_VERIFICATION') {
+        <button
+          type="button"
+          class="btn btn-primary"
+          data-testid="btn-consultar"
+          [disabled]="!!busy()"
+          (click)="consult(t.id)"
+        >
+          {{ t.type === 'reverso' ? 'Consultar estado del reverso' : 'Consultar estado' }}
+        </button>
+        @if (t.lastConsultResult === 'SR' && t.retryAvailable && idempotency()) {
+          <button
+            type="button"
+            class="btn"
+            data-testid="btn-reintentar"
+            [disabled]="!!busy()"
+            (click)="retry()"
+          >
+            Reintentar con la misma clave {{ t.idempotencyKey }}
+          </button>
+        }
+      }
+      @if (t.status === 'APPROVED' && t.type !== 'reverso') {
+        @if (live(); as rv) {
+          @if (rv.status === 'PENDING_VERIFICATION') {
+            <span class="rounded bg-warning-soft px-2 py-1 text-xs font-semibold text-warning" data-testid="marca-reverso-pv">
+              Reverso en verificación ({{ rv.id }})
+            </span>
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-testid="btn-consultar-reverso"
+              [disabled]="!!busy()"
+              (click)="consult(rv.id)"
+            >
+              Consultar estado del reverso
+            </button>
+          }
+        }
+        <button
+          type="button"
+          class="btn"
+          data-testid="btn-anular"
+          [disabled]="!!busy() || !!live() || shiftClosed()"
+          [attr.title]="shiftClosed() ? 'Turno cerrado: la transacción no se anula' : null"
+          (click)="openVoid()"
+        >
+          Anular
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-testid="btn-reversar"
+          [disabled]="!!busy() || !!live() || t.type === 'retiro' || shiftClosed()"
+          [attr.title]="shiftClosed() ? 'Turno cerrado: la transacción no se reversa' : null"
+          (click)="openReverse()"
+        >
+          Reversar
+        </button>
+        @if (shiftClosed()) {
+          <span class="self-center text-xs text-muted" data-testid="turno-cerrado">
+            Turno cerrado: no se anula ni se reversa
+          </span>
+        }
+      }
+    </div>
+
+    @if (mode() === 'void') {
+      <div class="rounded border border-line bg-surface-alt p-3 text-sm" data-testid="form-anular">
+        <p class="mb-2 font-semibold">Anular {{ t.id }} (sin crear una transacción nueva)</p>
+        <label class="label" for="void-reason">Motivo (obligatorio)</label>
+        <select id="void-reason" class="input mb-2" [(ngModel)]="reason" data-testid="motivo-anular">
+          @for (r of reasons; track r) {
+            <option [value]="r">{{ r }}</option>
+          }
+        </select>
+        @if (t.type === 'deposito') {
+          <label class="label" for="void-sup">Confirmación del supervisor</label>
+          <select id="void-sup" class="input mb-2" [(ngModel)]="supervisorId" data-testid="supervisor-anular">
+            <option value="">— Sin confirmación —</option>
+            @for (s of supervisors(); track s.id) {
+              <option [value]="s.id">{{ s.name }} ({{ s.id }})</option>
+            }
+          </select>
+        }
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-danger" data-testid="confirmar-anular" (click)="confirmVoid()">
+            Confirmar anulación
+          </button>
+          <button type="button" class="btn" (click)="mode.set('none')">Cancelar</button>
+        </div>
+      </div>
+    }
+
+    @if (mode() === 'reverse') {
+      <div class="rounded border border-line bg-surface-alt p-3 text-sm" data-testid="form-reversar">
+        <p class="mb-2 font-semibold">
+          Reverso funcional de {{ t.id }}: transacción compensatoria vinculada
+        </p>
+        <label class="label" for="rev-reason">Motivo (obligatorio)</label>
+        <select id="rev-reason" class="input mb-2" [(ngModel)]="reason" data-testid="motivo-reversar">
+          @for (r of reasons; track r) {
+            <option [value]="r">{{ r }}</option>
+          }
+        </select>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-danger" data-testid="confirmar-reversar" [disabled]="!!busy()" (click)="confirmReverse()">
+            Confirmar reverso
+          </button>
+          <button type="button" class="btn" (click)="mode.set('none')">Cancelar</button>
+        </div>
+      </div>
+    }
+
+    @if (busy(); as b) {
+      <p class="text-sm text-muted" data-testid="ocupado">{{ b }}</p>
+    }
+    @if (message(); as m) {
+      <p
+        data-testid="mensaje-accion"
+        [class]="m.kind === 'ok' ? 'text-sm text-success' : m.kind === 'warning' ? 'text-sm text-warning' : 'text-sm text-error'"
+      >
+        {{ m.text }}
+      </p>
+    }
+  </div>
+}

@@ -1,0 +1,187 @@
+<div class="flex min-h-full flex-col">
+  <div
+    class="sticky top-0 z-50 bg-band py-1 text-center text-xs font-bold tracking-widest text-band-ink print:static"
+    data-testid="banda-simulacion"
+    role="status"
+  >
+    SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL
+  </div>
+
+  <header class="no-print border-b border-line bg-surface px-4 py-2">
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        class="btn md:hidden"
+        aria-label="Menú"
+        (click)="menuOpen.set(!menuOpen())"
+      >
+        ☰
+      </button>
+      <a routerLink="/inicio" class="text-lg font-bold text-primary" data-testid="logotipo">
+        IT2Pay <span class="font-normal text-muted">· Simulador comercial</span>
+      </a>
+      <label class="flex items-center gap-1 text-sm">
+        <span class="text-muted">Escenario</span>
+        <select
+          class="input w-auto"
+          data-testid="selector-escenario"
+          [ngModel]="store.activeScenario()"
+          (ngModelChange)="changeScenario($event)"
+        >
+          @for (sc of scenarios; track sc.id) {
+            <option [value]="sc.id">{{ sc.name }}</option>
+          }
+        </select>
+      </label>
+      <div class="min-w-0 flex-1 text-xs text-muted" data-testid="sesion-encabezado">
+        @if (session(); as s) {
+          <span class="font-medium text-ink">{{ s.text }}</span>
+          · {{ s.user }} · Turno: {{ s.shift }}
+        } @else {
+          Sin caja seleccionada
+        }
+      </div>
+      <button
+        type="button"
+        class="btn"
+        data-testid="btn-guia-demo"
+        title="Ctrl+Shift+D"
+        [class.btn-primary]="demo.hudOpen()"
+        (click)="demo.toggleHud()"
+      >
+        Guía de demo
+      </button>
+      <label class="flex items-center gap-1 text-sm" title="Historias (US) y requerimientos (RF) de cada vista">
+        <input type="checkbox" data-testid="btn-trazabilidad" [checked]="demo.showTrace()" (change)="demo.toggleTrace()" />
+        Trazabilidad
+      </label>
+      <button type="button" class="btn" data-testid="btn-presentador" (click)="store.presenterOpen.set(!store.presenterOpen())">
+        Panel del presentador
+      </button>
+      <button type="button" class="btn btn-danger" data-testid="btn-reiniciar" (click)="confirmReset.set('scenario')">
+        Reiniciar escenario
+      </button>
+      <button type="button" class="btn" data-testid="btn-reiniciar-todo" (click)="confirmReset.set('all')">
+        Reiniciar todo
+      </button>
+    </div>
+  </header>
+
+  @if (store.presenterOpen()) {
+    <section
+      class="no-print border-b border-line bg-warning-soft px-4 py-3 text-sm"
+      data-testid="panel-presentador"
+      aria-label="Panel del presentador"
+    >
+      <div class="flex flex-wrap items-end gap-4">
+        <label>
+          <span class="label">Próxima autorización (un solo uso)</span>
+          <select
+            class="input w-auto"
+            data-testid="panel-autorizacion"
+            [ngModel]="store.state().presenter.nextAuthorization"
+            (ngModelChange)="setAuth($event)"
+          >
+            @for (o of authOptions; track o.value) {
+              <option [value]="o.value">{{ o.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span class="label">Próximo reverso (un solo uso)</span>
+          <select
+            class="input w-auto"
+            data-testid="panel-reverso"
+            [ngModel]="store.state().presenter.nextReverse"
+            (ngModelChange)="setReverse($event)"
+          >
+            @for (o of reverseOptions; track o.value) {
+              <option [value]="o.value">{{ o.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            data-testid="panel-idempotencia"
+            [ngModel]="store.state().presenter.idempotency"
+            (ngModelChange)="setIdempotency($event)"
+          />
+          <span>Reval (simulado) ofrece idempotencia</span>
+        </label>
+        <div class="text-xs text-muted">
+          Gatillos por terminación: 013 rechazo · 408 timeout→aprobada · 409 timeout→rechazada · 410 en
+          proceso · 404 sin registro · 999 sin obligación · OTP 000000 rechazo.
+          @if (lastTx(); as t) {
+            <br />Último desenlace: <strong>{{ t.id }}</strong> — {{ t.appliedOutcome }}
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <div class="flex flex-1">
+    <nav
+      class="no-print w-56 shrink-0 border-r border-line bg-surface p-2 md:block"
+      [class.hidden]="!menuOpen()"
+      aria-label="Vistas del simulador"
+      data-testid="menu"
+    >
+      <ul class="flex flex-col gap-0.5">
+        @for (v of views; track v.id) {
+          <li>
+            <a
+              [routerLink]="'/' + v.path"
+              routerLinkActive="bg-primary text-primary-contrast"
+              [routerLinkActiveOptions]="{ exact: true }"
+              class="flex gap-2 rounded px-2 py-1.5 text-sm hover:bg-surface-alt"
+              [attr.data-testid]="'nav-' + v.id"
+              (click)="menuOpen.set(false)"
+            >
+              <span class="font-mono text-xs opacity-70">{{ v.id }}</span>
+              <span>{{ v.name }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <main class="min-w-0 flex-1 overflow-x-auto p-4">
+      @if (store.flash(); as f) {
+        <div
+          class="no-print mb-3 flex items-start justify-between gap-2 rounded border px-3 py-2 text-sm"
+          [class]="f.kind === 'ok' ? 'border-success bg-success-soft text-success' : f.kind === 'warning' ? 'border-warning bg-warning-soft text-warning' : 'border-error bg-error-soft text-error'"
+          data-testid="aviso"
+          role="alert"
+        >
+          <span>{{ f.text }}</span>
+          <button type="button" class="text-xs underline" (click)="store.flash.set(null)">Cerrar aviso</button>
+        </div>
+      }
+      <app-view-trace />
+      <router-outlet />
+    </main>
+
+    <app-demo-hud />
+  </div>
+</div>
+
+@if (confirmReset(); as kind) {
+  <div class="no-print fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+    <div class="card max-w-md" data-testid="dialogo-reinicio">
+      <p class="card-title">
+        {{ kind === 'all' ? 'Reiniciar los dos escenarios' : 'Reiniciar el escenario activo' }}
+      </p>
+      <p class="mb-4 text-sm text-muted">
+        Se restauran los datos iniciales de demostración y se borra todo lo creado en vivo
+        {{ kind === 'all' ? 'en Supermercados y en Parqueaderos' : 'en este escenario; el otro escenario no se toca' }}.
+      </p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn" data-testid="cancelar-reinicio" (click)="confirmReset.set(null)">Cancelar</button>
+        <button type="button" class="btn btn-danger" data-testid="confirmar-reinicio" (click)="doReset()">
+          Confirmar reinicio
+        </button>
+      </div>
+    </div>
+  </div>
+}

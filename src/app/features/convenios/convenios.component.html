@@ -1,0 +1,173 @@
+<h1 class="page-title mb-1">V04 · Convenios y servicios</h1>
+<p class="mb-4 flex items-center gap-2 text-sm text-muted">
+  <span class="rounded bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning" data-testid="catalogo-propuesto">Catálogo propuesto</span>
+  Convenios, operadores y servicios ficticios propuestos a partir de las categorías del alcance.
+</p>
+
+<section class="card mb-4 overflow-x-auto" data-testid="tabla-servicios">
+  <h2 class="card-title">Catálogo (B05) <app-trace-badge [items]="['B05']" /></h2>
+  <table class="table">
+    <thead>
+      <tr><th>Id</th><th>Servicio</th><th>Categoría · subcategoría</th><th>Línea</th><th>Referencias</th><th>Parcial</th><th>Extemp.</th><th>Rango</th><th>Comisión general</th><th>Estado</th></tr>
+    </thead>
+    <tbody>
+      @for (s of state().services; track s.id) {
+        <tr [attr.data-testid]="'srv-' + s.id">
+          <td class="font-mono text-xs">{{ s.id }}</td>
+          <td>{{ s.name }} @if (s.p2) {<span class="text-xs text-muted">(P2)</span>}</td>
+          <td class="text-xs">{{ s.categoryCode }} {{ s.category }} · {{ s.subcategory }}</td>
+          <td>{{ s.line ?? '—' }}</td>
+          <td class="text-xs">{{ describeReferences(s) }}</td>
+          <td>{{ s.operationType === 'recaudo' ? (s.allowsPartial ? 'Sí (mín. ' + (s.minPartial | money) + ')' : 'No') : '—' }}</td>
+          <td>{{ s.operationType === 'recaudo' ? (s.allowsLate ? 'Sí' : 'No') : '—' }}</td>
+          <td class="text-xs">{{ s.range ? (s.range.min | money) + ' – ' + (s.range.max | money) : (s.operationType ? 'Según obligación' : '—') }}</td>
+          <td>{{ general(s.id) }}</td>
+          <td>
+            @if (s.documentedOnly) {
+              <span class="text-xs text-muted">Inactivo (capacidad documentada)</span>
+            } @else {
+              {{ s.active ? 'Activo' : 'Inactivo' }}
+              <button type="button" class="text-xs underline" (click)="toggleService(s.id, !s.active)">{{ s.active ? 'Inactivar' : 'Activar' }}</button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  <h3 class="mt-4 mb-2 text-sm font-semibold">Crear servicio</h3>
+  <div class="grid gap-2 md:grid-cols-4">
+    <label><span class="label">Nombre</span><input class="input" data-testid="srv-nombre" [(ngModel)]="name" /></label>
+    <label>
+      <span class="label">Categoría</span>
+      <select class="input" data-testid="srv-categoria" [(ngModel)]="categoryCode">
+        @for (c of categories; track c.code) {
+          <option [ngValue]="c.code">{{ c.code }} {{ c.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="label">Subcategoría</span>
+      <input class="input" list="subcategorias" data-testid="srv-subcategoria" [(ngModel)]="subcategory" />
+      <datalist id="subcategorias">
+        @for (s of subcategories; track s) {
+          <option [value]="s"></option>
+        }
+      </datalist>
+    </label>
+    <label>
+      <span class="label">Tipo de operación (línea)</span>
+      <select class="input" data-testid="srv-tipo" [(ngModel)]="opType">
+        @for (o of opTypes; track o.value) {
+          <option [value]="o.value">{{ o.label }} ({{ o.line }})</option>
+        }
+      </select>
+    </label>
+    <label><span class="label">Nombre de la referencia</span><input class="input" data-testid="srv-referencia" [(ngModel)]="referenceName" /></label>
+    <label><span class="label">Longitud de la referencia</span><input class="input" type="number" data-testid="srv-longitud" [(ngModel)]="referenceLength" /></label>
+    @if (opType === 'recaudo') {
+      <label class="flex items-center gap-2 pt-5"><input type="checkbox" data-testid="srv-parcial" [(ngModel)]="allowsPartial" /> Admite pago parcial</label>
+      @if (allowsPartial) {
+        <label><span class="label">Abono mínimo</span><input class="input" type="number" [(ngModel)]="minPartial" /></label>
+      }
+      <label class="flex items-center gap-2 pt-5"><input type="checkbox" data-testid="srv-extemporaneo" [(ngModel)]="allowsLate" /> Admite pago extemporáneo</label>
+    } @else {
+      <label><span class="label">Valor mínimo</span><input class="input" type="number" [(ngModel)]="rangeMin" /></label>
+      <label><span class="label">Valor máximo</span><input class="input" type="number" [(ngModel)]="rangeMax" /></label>
+    }
+  </div>
+  <button type="button" class="btn btn-primary mt-3" data-testid="crear-servicio" (click)="createService()">Crear servicio</button>
+</section>
+
+<div class="grid gap-4 xl:grid-cols-2">
+  <section class="card" data-testid="seccion-habilitacion">
+    <h2 class="card-title">Habilitación por cadena o PDV (B06) <app-trace-badge [items]="['B06']" /></h2>
+    <label class="mb-3 block max-w-sm">
+      <span class="label">Servicio</span>
+      <select class="input" data-testid="hab-servicio" [ngModel]="enableServiceId()" (ngModelChange)="enableServiceId.set($event)">
+        @for (s of state().services; track s.id) {
+          @if (!s.documentedOnly) {
+            <option [value]="s.id">{{ s.id }} · {{ s.name }}</option>
+          }
+        }
+      </select>
+    </label>
+    @if (enableService(); as svc) {
+      <h3 class="mb-1 text-sm font-semibold">Por cadena</h3>
+      <table class="table mb-3">
+        <tbody>
+          @for (c of state().chains; track c.id) {
+            <tr>
+              <td>{{ c.name }}</td>
+              <td>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [attr.data-testid]="'hab-cadena-' + c.id" [checked]="chainRule(svc.id, c.id)" (change)="setChainRule(svc.id, c.id, !chainRule(svc.id, c.id))" />
+                  Habilitado
+                </label>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      <h3 class="mb-1 text-sm font-semibold">Por PDV (prevalece sobre la cadena)</h3>
+      <table class="table">
+        <thead><tr><th>PDV</th><th>Cadena</th><th>Regla</th><th>Efectivo</th></tr></thead>
+        <tbody>
+          @for (p of state().pdvs; track p.id) {
+            <tr>
+              <td>{{ p.id }} · {{ p.name }}</td>
+              <td>{{ chainOf(p.id) }}</td>
+              <td>
+                <select class="input" [attr.data-testid]="'hab-pdv-' + p.id" [ngModel]="pdvRule(svc.id, p.id)" (ngModelChange)="setPdvRule(svc.id, p.id, $event)">
+                  <option value="hereda">Hereda de la cadena</option>
+                  <option value="si">Habilitado</option>
+                  <option value="no">Deshabilitado</option>
+                </select>
+              </td>
+              <td [attr.data-testid]="'hab-efectivo-' + p.id">{{ effective(svc.id, p.id) ? 'Sí' : 'No' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </section>
+
+  <section class="card" data-testid="seccion-comisiones">
+    <h2 class="card-title">Comisiones básicas (B07) <app-trace-badge [items]="['B07']" /></h2>
+    <div class="grid gap-2 md:grid-cols-2">
+      <label>
+        <span class="label">Servicio</span>
+        <select class="input" data-testid="com-servicio" [(ngModel)]="comServiceId">
+          @for (s of state().services; track s.id) {
+            @if (!s.documentedOnly) {
+              <option [value]="s.id">{{ s.id }} · {{ s.name }}</option>
+            }
+          }
+        </select>
+      </label>
+      <label>
+        <span class="label">Cadena</span>
+        <select class="input" data-testid="com-cadena" [(ngModel)]="comChainId">
+          <option value="">General del servicio</option>
+          @for (c of state().chains; track c.id) {
+            <option [value]="c.id">{{ c.name }}</option>
+          }
+        </select>
+      </label>
+      <label><span class="label">Comisión cadena ($ por transacción)</span><input class="input" type="number" data-testid="com-valor-cadena" [(ngModel)]="comChain" /></label>
+      <label><span class="label">Comisión IT2EX ($ por transacción)</span><input class="input" type="number" data-testid="com-valor-it2ex" [(ngModel)]="comIt2ex" /></label>
+    </div>
+    <p class="mt-2 text-sm text-muted">Vigente para esta combinación: {{ currentCommission() }}</p>
+    <button type="button" class="btn btn-primary mt-2" data-testid="guardar-comision" (click)="saveCommission()">Guardar comisión</button>
+    <h3 class="mt-4 mb-1 text-sm font-semibold">Comisiones diferenciadas</h3>
+    <table class="table">
+      <thead><tr><th>Id</th><th>Servicio</th><th>Cadena</th><th class="num">Cadena / IT2EX</th></tr></thead>
+      <tbody>
+        @for (c of state().commissions; track c.id) {
+          <tr><td>{{ c.id }}</td><td>{{ serviceLabel(c.serviceId) }}</td><td>{{ chainLabel(c.chainId) }}</td><td class="num">{{ c.chainValue }} / {{ c.it2exValue }}</td></tr>
+        }
+      </tbody>
+    </table>
+    <app-illustrative>Comisión fija por transacción vigente. Precedencia: cadena × servicio &gt; general del servicio &gt; 400 / 200. Se congela al aprobar y solo afecta operaciones futuras.</app-illustrative>
+  </section>
+</div>

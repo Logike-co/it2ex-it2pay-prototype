@@ -1,0 +1,147 @@
+<h1 class="page-title mb-3">V07 · Consulta transaccional</h1>
+
+<section class="card mb-4">
+  <div class="grid gap-2 md:grid-cols-6">
+    <label>
+      <span class="label">Estado</span>
+      <select class="input" data-testid="filtro-estado" [ngModel]="fStatus()" (ngModelChange)="fStatus.set($event)">
+        <option value="">Todos</option>
+        @for (o of statusOptions; track o[0]) {
+          <option [value]="o[0]">{{ o[1] }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="label">Tipo</span>
+      <select class="input" data-testid="filtro-tipo" [ngModel]="fType()" (ngModelChange)="fType.set($event)">
+        <option value="">Todos</option>
+        @for (o of typeOptions; track o[0]) {
+          <option [value]="o[0]">{{ o[1] }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="label">Cadena</span>
+      <select class="input" data-testid="filtro-cadena" [ngModel]="fChain()" (ngModelChange)="fChain.set($event)">
+        <option value="">Todas</option>
+        @for (c of state().chains; track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="label">Caja</span>
+      <select class="input" data-testid="filtro-caja" [ngModel]="fRegister()" (ngModelChange)="fRegister.set($event)">
+        <option value="">Todas</option>
+        @for (r of state().registers; track r.id) {
+          <option [value]="r.id">{{ r.id }}</option>
+        }
+      </select>
+    </label>
+    <label class="md:col-span-2">
+      <span class="label">Buscar (id, referencia o servicio)</span>
+      <input class="input" data-testid="filtro-texto" [ngModel]="fText()" (ngModelChange)="fText.set($event)" />
+    </label>
+  </div>
+  <button type="button" class="btn mt-2" (click)="clearFilters()">Limpiar filtros</button>
+</section>
+
+<div class="grid gap-4 xl:grid-cols-5">
+  <section class="card overflow-x-auto xl:col-span-3">
+    <h2 class="card-title">
+      Transacciones del escenario
+      <span class="text-sm font-normal text-muted" data-testid="conteo-transacciones">{{ rows().length }} transacciones</span>
+      <app-trace-badge [items]="['F13']" />
+    </h2>
+    @if (rows().length) {
+      <table class="table" data-testid="tabla-transacciones">
+        <thead>
+          <tr><th>TX</th><th>Hora</th><th>Caja</th><th>Tipo · servicio</th><th>Referencia</th><th class="num">Valor</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+          @for (t of rows(); track t.id) {
+            <tr
+              class="cursor-pointer hover:bg-surface-alt"
+              [class.bg-primary-soft]="t.id === selectedId()"
+              [attr.data-testid]="'fila-' + t.id"
+              (click)="select(t.id)"
+            >
+              <td class="font-mono text-xs">{{ t.id }}</td>
+              <td>{{ t.at | hora }}</td>
+              <td class="whitespace-nowrap">{{ t.registerId }}</td>
+              <td>{{ t.type | tipo }} · {{ serviceOf(t.serviceId) }}</td>
+              <td>{{ t.referenceDisplay }}</td>
+              <td class="num">{{ t.value | money }}</td>
+              <td><app-status-badge [status]="t.status" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <app-empty-state title="Sin transacciones para estos filtros" detail="Cambie o limpie los filtros." />
+    }
+  </section>
+
+  <section class="card xl:col-span-2" data-testid="detalle-transaccion">
+    @if (selected(); as t) {
+      <h2 class="card-title">{{ t.id }} <app-status-badge [status]="t.status" /> <app-trace-badge [items]="['F13']" /></h2>
+      <dl class="grid grid-cols-2 gap-1 text-sm">
+        <dt class="text-muted">Cadena</dt><dd>{{ chainOf(t.chainId) }}</dd>
+        <dt class="text-muted">Sucursal · PDV</dt><dd>{{ branchOf(t.branchId) }} · {{ t.pdvId }}</dd>
+        <dt class="text-muted">Caja · turno</dt><dd>{{ t.registerId }} · {{ t.shiftId }}</dd>
+        <dt class="text-muted">Operador</dt><dd>{{ t.operatorId }}</dd>
+        <dt class="text-muted">Tipo · línea</dt><dd>{{ t.type | tipo }} · {{ t.line ?? '—' }}</dd>
+        <dt class="text-muted">Convenio</dt><dd>{{ serviceOf(t.serviceId) }}</dd>
+        <dt class="text-muted">Referencia</dt><dd>{{ t.referenceDisplay }}</dd>
+        <dt class="text-muted">Valor · medio</dt><dd>{{ t.value | money }} · {{ t.method | medio }}</dd>
+        <dt class="text-muted">Autorización</dt><dd>{{ t.authorization ?? '—' }}</dd>
+        <dt class="text-muted">Comisión (cadena / IT2EX)</dt>
+        <dd>{{ t.chainCommission !== null ? t.chainCommission + ' / ' + t.it2exCommission : '—' }}{{ t.status !== 'APPROVED' && t.chainCommission !== null ? ' (no cuenta)' : '' }}</dd>
+        <dt class="text-muted">Clave idempotente</dt><dd class="font-mono text-xs">{{ t.idempotencyKey }}</dd>
+      </dl>
+      <h3 class="mt-3 mb-1 text-sm font-semibold">Traza</h3>
+      <p class="text-sm" data-testid="traza-detalle">
+        @for (e of t.trace; track $index; let last = $last) {
+          <span>{{ traceLabels[e.to] }} {{ e.at | hora }}{{ e.note ? ' (' + e.note + ')' : '' }}</span>
+          @if (!last) {
+            <span class="text-muted"> → </span>
+          }
+        }
+      </p>
+      @if (t.originalId) {
+        <p class="mt-2 text-sm">Reverso de <button type="button" class="underline" [attr.data-testid]="'enlace-' + t.originalId" (click)="select(t.originalId)">{{ t.originalId }}</button></p>
+      }
+      @for (r of t.reverseIds; track r) {
+        <p class="mt-2 text-sm">Reverso vinculado: <button type="button" class="underline" [attr.data-testid]="'enlace-' + r" (click)="select(r)">{{ r }}</button></p>
+      }
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button type="button" class="btn" data-testid="btn-ver-comprobante" (click)="openResult(t.id)">Ver resultado y comprobante</button>
+      </div>
+      <div class="mt-3">
+        <app-tx-actions [txId]="t.id" (changed)="select($event)" />
+      </div>
+    } @else {
+      <app-empty-state title="Seleccione una transacción" detail="Verá su detalle, su traza de estados y sus acciones." />
+    }
+  </section>
+</div>
+
+<section class="card mt-4">
+  <h2 class="card-title">
+    Recaudos vigentes agrupados
+    <app-trace-badge [items]="['C01']" />
+    <select class="input w-auto" data-testid="agrupacion" [ngModel]="grouping()" (ngModelChange)="grouping.set($event)">
+      <option value="caja">Por caja</option>
+      <option value="sucursal">Por establecimiento (sucursal)</option>
+    </select>
+  </h2>
+  <table class="table max-w-2xl" data-testid="tabla-agrupada">
+    <thead><tr><th>{{ grouping() === 'caja' ? 'Caja' : 'Establecimiento' }}</th><th class="num">Transacciones</th><th class="num">Total</th></tr></thead>
+    <tbody>
+      @for (g of groups(); track g.key) {
+        <tr [attr.data-testid]="'grupo-' + g.key"><td>{{ g.label }}</td><td class="num">{{ g.count }}</td><td class="num">{{ g.total | money }}</td></tr>
+      }
+    </tbody>
+  </table>
+  <p class="mt-2 text-xs text-muted"><a routerLink="/dashboard" class="underline">Volver al dashboard</a></p>
+</section>

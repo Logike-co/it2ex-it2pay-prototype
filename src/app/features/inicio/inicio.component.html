@@ -1,0 +1,100 @@
+<h1 class="page-title mb-1">V01 · Inicio y escenarios</h1>
+<p class="mb-4 text-sm text-muted">
+  Elija el escenario de referencia, la cadena, la sucursal y la caja, e ingrese con un perfil ficticio.
+</p>
+
+<div class="mb-6 grid gap-4 md:grid-cols-2">
+  @for (c of scenarioCards(); track c.id) {
+    <section class="card" [class.ring-2]="c.active" [class.ring-primary]="c.active" [attr.data-testid]="'tarjeta-' + c.id">
+      <h2 class="card-title">
+        {{ c.short }}
+        <span class="text-xs font-normal text-muted">{{ c.name }}</span>
+        @if (c.active) {
+          <span class="rounded bg-primary px-2 py-0.5 text-xs text-primary-contrast">Activo</span>
+        }
+      </h2>
+      <dl class="grid grid-cols-3 gap-2 text-sm" [attr.data-testid]="'cobertura-' + c.id">
+        <div><dt class="text-muted">Cadenas</dt><dd class="text-lg font-semibold" data-testid="cov-cadenas">{{ c.cov.chains }}</dd></div>
+        <div><dt class="text-muted">Sucursales</dt><dd class="text-lg font-semibold" data-testid="cov-sucursales">{{ c.cov.branches }}</dd></div>
+        <div><dt class="text-muted">PDV</dt><dd class="text-lg font-semibold" data-testid="cov-pdv">{{ c.cov.pdvs }}</dd></div>
+        <div><dt class="text-muted">Cajas</dt><dd class="text-lg font-semibold" data-testid="cov-cajas">{{ c.cov.registers }}</dd></div>
+        <div><dt class="text-muted">Cajeros</dt><dd class="text-lg font-semibold" data-testid="cov-cajeros">{{ c.cov.cashiers }}</dd></div>
+        <div><dt class="text-muted">Servicios habilitados</dt><dd class="text-lg font-semibold" data-testid="cov-servicios">{{ c.cov.services }}</dd></div>
+      </dl>
+      @if (!c.active) {
+        <button type="button" class="btn btn-primary mt-3" [attr.data-testid]="'usar-' + c.id" (click)="useScenario(c.id)">
+          Usar {{ c.short }}
+        </button>
+      }
+    </section>
+  }
+</div>
+
+<section class="card max-w-3xl">
+  <h2 class="card-title">Seleccionar caja e ingresar <app-trace-badge [items]="['F01', 'F02']" /></h2>
+  @if (state().session.registerId) {
+    <p class="mb-3 rounded bg-success-soft px-3 py-2 text-sm text-success" data-testid="sesion-activa">
+      Sesión activa en {{ state().session.registerId }} · turno {{ state().session.shiftId ?? 'cerrado' }}.
+      <a routerLink="/caja" class="underline">Ir a la terminal de caja</a>
+      ·
+      <button type="button" class="underline" (click)="logout()">Salir</button>
+    </p>
+  }
+  <div class="grid gap-3 md:grid-cols-2">
+    <label>
+      <span class="label">Cadena (aliado comercial)</span>
+      <select class="input" data-testid="sel-cadena" [(ngModel)]="chainId" (ngModelChange)="onChain()">
+        <option value="">— Elija una cadena —</option>
+        @for (c of chains(); track c.id) {
+          <option [value]="c.id">{{ c.name }} ({{ c.id }})</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="label">Sucursal (establecimiento)</span>
+      <select class="input" data-testid="sel-sucursal" [(ngModel)]="branchId" (ngModelChange)="onBranch()" [disabled]="!chainId">
+        <option value="">— Elija una sucursal —</option>
+        @for (b of branches(); track b.id) {
+          <option [value]="b.id">{{ b.name }} ({{ b.id }})</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="label">Caja</span>
+      <select class="input" data-testid="sel-caja" [(ngModel)]="registerId" (ngModelChange)="onRegister()" [disabled]="!branchId">
+        <option value="">— Elija una caja —</option>
+        @for (r of registers(); track r.id) {
+          <option [value]="r.id">{{ r.id }} · {{ pdvOf(r.id) }} · {{ r.currentShiftId ? 'Abierta' : 'Cerrada' }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span class="label">Perfil y usuario ficticio</span>
+      <select class="input" data-testid="sel-usuario" [(ngModel)]="userId" [disabled]="!registerId">
+        <option value="">— Elija un usuario —</option>
+        @for (u of users(); track u.id) {
+          <option [value]="u.id">{{ u.profile }} · {{ u.name }} ({{ u.id }})</option>
+        }
+      </select>
+    </label>
+    @if (register(); as r) {
+      @if (!r.currentShiftId) {
+        <label>
+          <span class="label">Base inicial del turno nuevo</span>
+          <input class="input" type="number" min="0" data-testid="base-turno" [(ngModel)]="baseCash" />
+        </label>
+        <p class="self-end text-xs text-muted">La caja no tiene turno abierto: al ingresar se abre uno con esta base.</p>
+      } @else {
+        <p class="text-sm text-muted md:col-span-2">Caja abierta con el turno {{ r.currentShiftId }}.</p>
+      }
+    }
+  </div>
+  @if (registerId) {
+    <p class="mt-3 rounded bg-surface-alt px-3 py-2 text-sm font-medium" data-testid="seleccion-encabezado">{{ selectionHeader() }}</p>
+  }
+  <div class="mt-4 flex gap-2">
+    <button type="button" class="btn btn-primary" data-testid="btn-ingresar" [disabled]="!registerId || !userId" (click)="login()">
+      Ingresar
+    </button>
+  </div>
+</section>

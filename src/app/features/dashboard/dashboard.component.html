@@ -1,0 +1,122 @@
+<h1 class="page-title mb-3">V02 · Dashboard ejecutivo</h1>
+
+<section class="card mb-4 flex flex-wrap items-end gap-3">
+  <label>
+    <span class="label">Cadena</span>
+    <select class="input w-56" data-testid="dash-cadena" [ngModel]="chainId()" (ngModelChange)="onChain($event)">
+      <option value="">Todo el escenario</option>
+      @for (c of state().chains; track c.id) {
+        <option [value]="c.id">{{ c.name }}</option>
+      }
+    </select>
+  </label>
+  <label>
+    <span class="label">PDV</span>
+    <select class="input w-56" data-testid="dash-pdv" [ngModel]="pdvId()" (ngModelChange)="pdvId.set($event)">
+      <option value="">Todos los PDV</option>
+      @for (p of pdvs(); track p.id) {
+        <option [value]="p.id">{{ p.id }} · {{ p.name }}</option>
+      }
+    </select>
+  </label>
+</section>
+
+@let i = ind();
+<section class="card mb-4" data-testid="kpis-financieros">
+  <h2 class="card-title">Indicadores financieros <app-legend /> <app-trace-badge [items]="['C12', 'C13']" /></h2>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <a routerLink="/transacciones" [queryParams]="{ estado: 'APPROVED' }" class="rounded border border-line p-3 hover:bg-surface-alt">
+      <p class="text-xs text-muted">Recaudo confirmado</p>
+      <p class="text-2xl font-semibold" data-testid="kpi-recaudo">{{ i.income | money }}</p>
+      <p class="text-xs text-muted">Retiros aparte: {{ i.withdrawals | money }}</p>
+    </a>
+    <a routerLink="/transacciones" [queryParams]="{ estado: 'APPROVED' }" class="rounded border border-line p-3 hover:bg-surface-alt">
+      <p class="text-xs text-muted">Transacciones vigentes</p>
+      <p class="text-2xl font-semibold" data-testid="kpi-vigentes">{{ i.current }}</p>
+    </a>
+    <div class="rounded border border-line p-3">
+      <p class="text-xs text-muted">Tasa de aprobación</p>
+      <p class="text-2xl font-semibold" data-testid="kpi-tasa">{{ i.approvalRate | pct }}</p>
+      <p class="text-xs text-muted">{{ i.authorized }} autorizadas de {{ i.authorized + i.rejected.count }}</p>
+    </div>
+    <div class="rounded border border-line p-3">
+      <p class="text-xs text-muted">Comisiones cadena / IT2EX</p>
+      <p class="text-2xl font-semibold"><span data-testid="kpi-com-cadena">{{ i.chainCommission | money }}</span> / <span data-testid="kpi-com-it2ex">{{ i.it2exCommission | money }}</span></p>
+    </div>
+    <a routerLink="/compensacion" class="rounded border border-line p-3 hover:bg-surface-alt">
+      <p class="text-xs text-muted">Pendiente por entregar</p>
+      <p class="text-2xl font-semibold" data-testid="kpi-pendiente">{{ i.pendingToDeliver | money }}</p>
+    </a>
+    <a routerLink="/conciliacion" class="rounded border border-line p-3 hover:bg-surface-alt">
+      <p class="text-xs text-muted">Excepciones de conciliación abiertas</p>
+      <p class="text-2xl font-semibold" data-testid="kpi-excepciones">{{ i.openExceptions }}</p>
+    </a>
+    <a routerLink="/cupos" class="rounded border border-line p-3 hover:bg-surface-alt">
+      <p class="text-xs text-muted">Cupos en alerta · bloqueos por cupo</p>
+      <p class="text-2xl font-semibold"><span data-testid="kpi-cupos-alerta">{{ i.quotasInAlert }}</span> · <span data-testid="kpi-bloqueos">{{ i.quotaBlocks }}</span></p>
+    </a>
+    <a routerLink="/cierre" class="rounded border border-line p-3 hover:bg-surface-alt">
+      <p class="text-xs text-muted">Diferencias de cierre del periodo</p>
+      <p class="text-2xl font-semibold" data-testid="kpi-dif-cierre">{{ i.closingDifferences | signed }}</p>
+    </a>
+  </div>
+  <app-illustrative>Recaudo confirmado = Σ valor de TX aprobadas (recaudo, recarga, depósito); tasa = autorizadas / (autorizadas + rechazadas), sin reversos ni transacciones en verificación.</app-illustrative>
+</section>
+
+<div class="grid gap-4 lg:grid-cols-3">
+  <section class="card" data-testid="estados">
+    <h2 class="card-title">Estados</h2>
+    <table class="table">
+      <thead><tr><th>Estado</th><th class="num">Cantidad</th><th class="num">Valor</th></tr></thead>
+      <tbody>
+        <tr><td><a class="underline" routerLink="/transacciones" [queryParams]="{ estado: 'REJECTED' }">Rechazadas</a></td><td class="num" data-testid="cnt-rechazadas">{{ i.rejected.count }}</td><td class="num">{{ i.rejected.value | money }}</td></tr>
+        <tr><td><a class="underline" routerLink="/transacciones" [queryParams]="{ estado: 'VOIDED' }">Anuladas</a></td><td class="num" data-testid="cnt-anuladas">{{ i.voided.count }}</td><td class="num">{{ i.voided.value | money }}</td></tr>
+        <tr><td><a class="underline" routerLink="/transacciones" [queryParams]="{ estado: 'REVERSED' }">Reversadas</a></td><td class="num" data-testid="cnt-reversadas">{{ i.reversed.count }}</td><td class="num">{{ i.reversed.value | money }}</td></tr>
+        <tr><td><a class="underline" routerLink="/transacciones" [queryParams]="{ estado: 'PENDING_VERIFICATION' }" data-testid="link-en-verificacion">En verificación</a></td><td class="num" data-testid="cnt-verificacion">{{ i.inVerification.count }}</td><td class="num">{{ i.inVerification.value | money }}</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section class="card">
+    <h2 class="card-title">Recaudo por línea <app-legend /></h2>
+    <table class="table">
+      <tbody>
+        @for (l of lines; track l) {
+          <tr><td>{{ l }}</td><td class="num">{{ i.incomeByLine[l] | money }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </section>
+  <section class="card">
+    <h2 class="card-title">Recaudo por cadena <app-legend /></h2>
+    <table class="table">
+      <tbody>
+        @for (c of state().chains; track c.id) {
+          <tr><td>{{ c.name }}</td><td class="num" [attr.data-testid]="'recaudo-' + c.id">{{ i.incomeByChain[c.id] | money }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<section class="card mt-4">
+  <h2 class="card-title">Últimas operaciones</h2>
+  @if (i.latest.length) {
+    <table class="table" data-testid="ultimas-operaciones">
+      <thead><tr><th>TX</th><th>Hora</th><th>Cadena</th><th>Tipo · servicio</th><th class="num">Valor</th><th>Estado</th></tr></thead>
+      <tbody>
+        @for (t of i.latest; track t.id) {
+          <tr>
+            <td><a class="font-mono text-xs underline" routerLink="/transacciones" [queryParams]="{ tx: t.id }" [attr.data-testid]="'ultima-' + t.id">{{ t.id }}</a></td>
+            <td>{{ t.at | hora }}</td>
+            <td>{{ chainLabel(t.chainId) }}</td>
+            <td>{{ t.type | tipo }} · {{ serviceOf(t.serviceId) }}</td>
+            <td class="num">{{ t.value | money }}</td>
+            <td><app-status-badge [status]="t.status" /></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p class="text-sm text-muted">Sin operaciones para este filtro.</p>
+  }
+</section>

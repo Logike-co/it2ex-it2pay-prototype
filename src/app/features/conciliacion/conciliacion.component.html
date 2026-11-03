@@ -1,0 +1,112 @@
+<h1 class="page-title mb-3">V10 · Conciliación</h1>
+
+<section class="card mb-4">
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="button" class="btn btn-primary" data-testid="btn-conciliar" (click)="run()">Ejecutar conciliación</button>
+    <span class="text-sm text-muted" data-testid="corte">
+      Último corte: {{ state().lastConciliationAt ? (state().lastConciliationAt | fechaHora) : 'sin ejecutar' }} · IT2Pay frente a Reval (simulado)
+    </span>
+  </div>
+</section>
+
+@if (!state().lastConciliationAt) {
+  <app-empty-state
+    title="Aún no se ha ejecutado la conciliación en este escenario"
+    detail="Pulse «Ejecutar conciliación» para comparar IT2Pay con Reval (simulado). El resultado siempre es el vivo."
+  />
+} @else {
+  @let r = result();
+  <section class="card mb-4" data-testid="resumen-conciliacion">
+    <h2 class="card-title">Resultado <app-legend /> <app-trace-badge [items]="['C04']" /></h2>
+    <div class="grid gap-3 sm:grid-cols-5">
+      <div><p class="text-xs text-muted">Comparados</p><p class="text-2xl font-semibold" data-testid="conc-comparados">{{ r.compared }}</p></div>
+      <div><p class="text-xs text-muted">Conciliados</p><p class="text-2xl font-semibold" data-testid="conc-conciliados">{{ r.conciliated }}</p></div>
+      <div><p class="text-xs text-muted">Excepciones</p><p class="text-2xl font-semibold" data-testid="conc-excepciones">{{ r.exceptions.length }}</p></div>
+      <div><p class="text-xs text-muted">Abiertas</p><p class="text-2xl font-semibold" data-testid="conc-abiertas">{{ r.open }}</p></div>
+      <div><p class="text-xs text-muted">Resueltas con ajuste</p><p class="text-2xl font-semibold" data-testid="conc-ajustes">{{ r.resolvedWithAdjustment }}</p></div>
+    </div>
+    <p class="mt-2 text-xs text-muted">Las transacciones rechazadas no entran en la comparación.</p>
+    <app-illustrative>Universos: TX de IT2Pay no rechazadas y registros de Reval (simulado) no rechazados; cruce por id compartido.
+Orden: 1) solo en un lado · 2) inconsistencia reportada · 3) diferencia de estado · 4) diferencia de valor · 5) conciliada.
+Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligatoria).</app-illustrative>
+  </section>
+
+  <section class="card mb-4 overflow-x-auto" data-testid="excepciones">
+    <h2 class="card-title">Excepciones (C05) <app-legend /> <app-trace-badge [items]="['C05']" /></h2>
+    @if (r.exceptions.length) {
+      <table class="table">
+        <thead><tr><th>TX</th><th>Tipo</th><th>Estado IT2Pay / Reval (simulado)</th><th class="num">Valor IT2Pay</th><th class="num">Valor Reval (simulado)</th><th class="num">Diferencia</th><th>Resolución</th><th>Acción</th></tr></thead>
+        <tbody>
+          @for (e of r.exceptions; track e.id) {
+            <tr [attr.data-testid]="'excepcion-' + e.id">
+              <td class="font-mono text-xs">{{ e.id }}</td>
+              <td data-testid="excepcion-tipo">{{ e.classification }}@if (e.reval?.inconsistency) {<br /><span class="text-xs text-muted">{{ e.reval?.inconsistency }}</span>}</td>
+              <td>{{ itStatus(e) }} / {{ e.reval?.status ?? '—' }}</td>
+              <td class="num">{{ e.itValue | money }}</td>
+              <td class="num">{{ e.revalValue | money }}</td>
+              <td class="num">{{ e.difference | signed }}</td>
+              <td data-testid="excepcion-resolucion">{{ e.resolution }}{{ e.resolution === 'resuelta con ajuste' ? ' (ilustrativo)' : '' }}</td>
+              <td class="whitespace-nowrap">
+                @if (e.resolution === 'abierta') {
+                  @switch (action(e)) {
+                    @case ('consulta') {
+                      <button type="button" class="btn" [attr.data-testid]="'consultar-' + e.id" [disabled]="busy()" (click)="consult(e.id)">Consultar estado</button>
+                    }
+                    @case ('reverso') {
+                      <button
+                        type="button"
+                        class="btn btn-danger"
+                        [attr.data-testid]="'reverso-tecnico-' + e.id"
+                        [disabled]="busy() || shiftClosed(e)"
+                        [attr.title]="shiftClosed(e) ? 'Turno cerrado: la transacción no se reversa' : null"
+                        (click)="technicalReverse(e.id)"
+                      >Reverso técnico</button>
+                      @if (shiftClosed(e)) {
+                        <span class="block text-xs text-muted" [attr.data-testid]="'turno-cerrado-' + e.id">Turno cerrado: no se reversa</span>
+                      }
+                    }
+                    @default {
+                      <div class="flex gap-1">
+                        <input class="input w-40" placeholder="Nota (obligatoria)" [attr.data-testid]="'nota-' + e.id" [(ngModel)]="notes[e.id]" />
+                        <button type="button" class="btn" [attr.data-testid]="'ajuste-' + e.id" (click)="adjust(e.id)">Registrar ajuste</button>
+                      </div>
+                    }
+                  }
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <app-empty-state title="Sin excepciones" detail="Todos los registros comparados están conciliados." />
+    }
+    @if (r.resolved.length) {
+      <h3 class="mt-4 mb-1 text-sm font-semibold">Excepciones resueltas</h3>
+      <ul class="text-sm" data-testid="resueltas">
+        @for (x of r.resolved; track x.txId) {
+          <li [attr.data-testid]="'resuelta-' + x.txId">{{ x.txId }} · {{ x.type }} · {{ x.resolution }}{{ x.note ? ' — ' + x.note : '' }} · {{ x.at | hora }}</li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section class="card overflow-x-auto" data-testid="comparacion">
+    <h2 class="card-title">IT2Pay frente a Reval (simulado) <app-legend /></h2>
+    <table class="table">
+      <thead><tr><th>Id compartido</th><th>IT2Pay</th><th class="num">Valor</th><th>Reval (simulado)</th><th class="num">Valor</th><th>Clasificación</th></tr></thead>
+      <tbody>
+        @for (row of r.rows; track row.id) {
+          <tr>
+            <td class="font-mono text-xs">{{ row.id }}</td>
+            <td>{{ itStatus(row) }}</td>
+            <td class="num">{{ row.itValue | money }}</td>
+            <td>{{ row.reval?.status ?? '—' }}</td>
+            <td class="num">{{ row.revalValue | money }}</td>
+            <td>{{ row.classification }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+}
