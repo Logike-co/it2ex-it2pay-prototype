@@ -15,7 +15,7 @@
       Comisiones descontadas del recaudo
     </label>
   </div>
-  <div class="grid gap-4 lg:grid-cols-3">
+  <div class="grid gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3">
     <div>
       <p class="text-xs text-muted">Ingresos (recaudo confirmado)</p>
       <p class="text-2xl font-semibold" data-testid="comp-ingresos">{{ c.income | money }}</p>
@@ -53,18 +53,18 @@ obligación Reval (simulado) = ingresos − retiros (por cadena y total)
 «descontadas»: neto = obligación − comisión cadena − comisión IT2EX</app-illustrative>
 </section>
 
-<div class="grid gap-4 xl:grid-cols-2">
+<div class="grid gap-4 @5xl:grid-cols-2">
   <section class="card" data-testid="efectivo">
     <h2 class="card-title">Efectivo pendiente por entregar (C07) <app-legend /> <app-trace-badge [items]="['C07']" /></h2>
     <p class="text-sm">Total pendiente por entregar: <strong class="text-lg" data-testid="pendiente-total">{{ c.pendingToDeliver | money }}</strong></p>
-    <table class="table my-2">
+    <div class="overflow-x-auto"><table class="table my-2">
       <thead><tr><th>PDV</th><th class="num">Pendiente por entregar</th></tr></thead>
       <tbody>
         @for (p of c.pendingByPdv; track p.pdvId) {
           <tr [attr.data-testid]="'pendiente-' + p.pdvId"><td>{{ p.pdvId }}</td><td class="num">{{ p.value | money }}</td></tr>
         }
       </tbody>
-    </table>
+    </table></div>
     <p class="text-sm">Efectivo entregado (consignaciones validadas): <strong data-testid="efectivo-entregado">{{ c.delivered | money }}</strong></p>
     <p class="text-sm">Consignaciones por validar: <strong data-testid="por-validar">{{ c.toValidate | money }}</strong></p>
     <p class="text-sm">De lo operado hoy: efectivo {{ c.cashIncome | money }} · otros medios {{ c.otherIncome | money }}</p>
@@ -73,7 +73,7 @@ obligación Reval (simulado) = ingresos − retiros (por cadena y total)
 
   <section class="card" data-testid="consignaciones">
     <h2 class="card-title">Consignaciones ficticias (C06) <app-legend /> <app-trace-badge [items]="['C06']" /></h2>
-    <div class="mb-3 grid gap-2 md:grid-cols-4">
+    <div class="mb-3 grid gap-2 @3xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
       <select class="input" data-testid="con-pdv" [(ngModel)]="conPdv">
         <option value="">— PDV —</option>
         @for (p of state().pdvs; track p.id) {

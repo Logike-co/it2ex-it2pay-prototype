@@ -1,7 +1,7 @@
 <h1 class="page-title mb-3 no-print">V06 · Resultado y comprobante</h1>
 
 @if (current(); as t) {
-  <div class="grid gap-4 lg:grid-cols-2">
+  <div class="grid gap-4 @4xl:grid-cols-2 print:block">
     <section class="card no-print" data-testid="resultado">
       <h2 class="card-title">
         <span data-testid="resultado-tx">{{ t.id }}</span>
@@ -50,14 +50,14 @@
       </ol>
 
       <h3 class="mt-4 mb-1 text-sm font-semibold">Solicitudes a Reval (simulado)</h3>
-      <table class="table">
+      <div class="overflow-x-auto"><table class="table">
         <thead><tr><th>#</th><th>Solicitud</th><th>Resultado</th><th>Código</th><th>Hora</th></tr></thead>
         <tbody>
           @for (a of attempts(); track a.id) {
             <tr><td>{{ a.attempt }}</td><td>{{ a.requestType }}</td><td>{{ a.result }}</td><td>{{ a.code }}</td><td>{{ a.at | hora }}</td></tr>
           }
         </tbody>
-      </table>
+      </table></div>
 
       @if (related().length) {
         <h3 class="mt-4 mb-1 text-sm font-semibold">Transacciones vinculadas</h3>
@@ -71,7 +71,7 @@
         </ul>
       }
 
-      <div class="mt-4 flex gap-2">
+      <div class="mt-4 flex flex-wrap gap-2">
         <a routerLink="/caja" class="btn">Nueva operación <span class="kbd">F1</span></a>
         <a routerLink="/transacciones" [queryParams]="{ tx: t.id }" class="btn">Ver en consulta transaccional</a>
       </div>

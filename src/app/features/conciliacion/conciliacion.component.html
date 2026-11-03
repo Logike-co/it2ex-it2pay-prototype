@@ -18,7 +18,7 @@
   @let r = result();
   <section class="card mb-4" data-testid="resumen-conciliacion">
     <h2 class="card-title">Resultado <app-legend /> <app-trace-badge [items]="['C04']" /></h2>
-    <div class="grid gap-3 sm:grid-cols-5">
+    <div class="grid gap-3 @xl:grid-cols-5">
       <div><p class="text-xs text-muted">Comparados</p><p class="text-2xl font-semibold" data-testid="conc-comparados">{{ r.compared }}</p></div>
       <div><p class="text-xs text-muted">Conciliados</p><p class="text-2xl font-semibold" data-testid="conc-conciliados">{{ r.conciliated }}</p></div>
       <div><p class="text-xs text-muted">Excepciones</p><p class="text-2xl font-semibold" data-testid="conc-excepciones">{{ r.exceptions.length }}</p></div>
@@ -34,7 +34,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
   <section class="card mb-4 overflow-x-auto" data-testid="excepciones">
     <h2 class="card-title">Excepciones (C05) <app-legend /> <app-trace-badge [items]="['C05']" /></h2>
     @if (r.exceptions.length) {
-      <table class="table">
+      <div class="overflow-x-auto"><table class="table">
         <thead><tr><th>TX</th><th>Tipo</th><th>Estado IT2Pay / Reval (simulado)</th><th class="num">Valor IT2Pay</th><th class="num">Valor Reval (simulado)</th><th class="num">Diferencia</th><th>Resolución</th><th>Acción</th></tr></thead>
         <tbody>
           @for (e of r.exceptions; track e.id) {
@@ -77,7 +77,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
             </tr>
           }
         </tbody>
-      </table>
+      </table></div>
     } @else {
       <app-empty-state title="Sin excepciones" detail="Todos los registros comparados están conciliados." />
     }
@@ -93,7 +93,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
 
   <section class="card overflow-x-auto" data-testid="comparacion">
     <h2 class="card-title">IT2Pay frente a Reval (simulado) <app-legend /></h2>
-    <table class="table">
+    <div class="overflow-x-auto"><table class="table">
       <thead><tr><th>Id compartido</th><th>IT2Pay</th><th class="num">Valor</th><th>Reval (simulado)</th><th class="num">Valor</th><th>Clasificación</th></tr></thead>
       <tbody>
         @for (row of r.rows; track row.id) {
@@ -107,6 +107,6 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
           </tr>
         }
       </tbody>
-    </table>
+    </table></div>
   </section>
 }

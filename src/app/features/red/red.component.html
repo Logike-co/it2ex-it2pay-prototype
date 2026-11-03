@@ -1,10 +1,10 @@
 <h1 class="page-title mb-1">V03 · Administración de red</h1>
 <p class="mb-4 text-sm text-muted">Cadena (aliado comercial) → sucursal (establecimiento) → PDV → caja. Todos los registros son ficticios.</p>
 
-<div class="grid gap-4 xl:grid-cols-2">
+<div class="grid gap-4 @5xl:grid-cols-2">
   <section class="card" data-testid="seccion-cadenas">
     <h2 class="card-title">Cadenas (B01) <app-trace-badge [items]="['B01']" /></h2>
-    <table class="table mb-3">
+    <div class="overflow-x-auto"><table class="table mb-3">
       <thead><tr><th>Id</th><th>Nombre</th><th>NIT</th><th>Estado</th><th></th></tr></thead>
       <tbody>
         @for (c of state().chains; track c.id) {
@@ -30,7 +30,7 @@
           </tr>
         }
       </tbody>
-    </table>
+    </table></div>
     <div class="flex gap-2">
       <input class="input" placeholder="Nombre de la cadena (ficticio)" data-testid="nueva-cadena" [(ngModel)]="newChain" />
       <button type="button" class="btn btn-primary" data-testid="crear-cadena" (click)="createChain()">Crear cadena</button>
@@ -39,7 +39,7 @@
 
   <section class="card" data-testid="seccion-sucursales">
     <h2 class="card-title">Sucursales y PDV (B02) <app-trace-badge [items]="['B02']" /></h2>
-    <table class="table mb-3">
+    <div class="overflow-x-auto"><table class="table mb-3">
       <thead><tr><th>Sucursal</th><th>Cadena</th><th>PDV</th><th>Estado</th></tr></thead>
       <tbody>
         @for (b of state().branches; track b.id) {
@@ -50,20 +50,20 @@
               @for (p of state().pdvs; track p.id) {
                 @if (p.branchId === b.id) {
                   <div>{{ p.id }} · {{ p.name }} <span class="text-xs text-muted">({{ p.activityType }}{{ p.active ? '' : ', inactivo' }})</span>
-                    <button type="button" class="text-xs underline" (click)="toggle('pdv', p.id, !p.active)">{{ p.active ? 'Inactivar' : 'Activar' }}</button>
+                    <button type="button" class="ml-1 text-xs underline" (click)="toggle('pdv', p.id, !p.active)">{{ p.active ? 'Inactivar' : 'Activar' }}</button>
                   </div>
                 }
               }
             </td>
             <td>
               {{ b.active ? 'Activa' : 'Inactiva' }}
-              <button type="button" class="text-xs underline" (click)="toggle('branch', b.id, !b.active)">{{ b.active ? 'Inactivar' : 'Activar' }}</button>
+              <button type="button" class="ml-1 text-xs underline" (click)="toggle('branch', b.id, !b.active)">{{ b.active ? 'Inactivar' : 'Activar' }}</button>
             </td>
           </tr>
         }
       </tbody>
-    </table>
-    <div class="mb-2 grid gap-2 md:grid-cols-3">
+    </table></div>
+    <div class="mb-2 grid gap-2 @3xl:grid-cols-3">
       <select class="input" data-testid="sucursal-cadena" [(ngModel)]="branchChain">
         <option value="">— Cadena —</option>
         @for (c of state().chains; track c.id) {
@@ -73,7 +73,7 @@
       <input class="input" placeholder="Nombre de la sucursal" data-testid="nueva-sucursal" [(ngModel)]="newBranch" />
       <button type="button" class="btn btn-primary" data-testid="crear-sucursal" (click)="createBranch()">Crear sucursal</button>
     </div>
-    <div class="grid gap-2 md:grid-cols-3">
+    <div class="grid gap-2 @3xl:grid-cols-3">
       <select class="input" data-testid="pdv-sucursal" [(ngModel)]="pdvBranch">
         <option value="">— Sucursal —</option>
         @for (b of state().branches; track b.id) {
@@ -87,7 +87,7 @@
 
   <section class="card" data-testid="seccion-cajas">
     <h2 class="card-title">Cajas <app-trace-badge [items]="['B02']" /></h2>
-    <table class="table mb-3">
+    <div class="overflow-x-auto"><table class="table mb-3">
       <thead><tr><th>Caja</th><th>PDV</th><th>Estado</th><th>Cajeros</th><th>Dispositivos</th></tr></thead>
       <tbody>
         @for (r of state().registers; track r.id) {
@@ -100,9 +100,9 @@
           </tr>
         }
       </tbody>
-    </table>
-    <div class="grid gap-2 md:grid-cols-3">
-      <select class="input md:col-span-2" data-testid="caja-pdv" [(ngModel)]="registerPdv">
+    </table></div>
+    <div class="grid gap-2 @3xl:grid-cols-3">
+      <select class="input @3xl:col-span-2" data-testid="caja-pdv" [(ngModel)]="registerPdv">
         <option value="">— PDV —</option>
         @for (p of state().pdvs; track p.id) {
           <option [value]="p.id">{{ p.id }} · {{ p.name }}</option>
@@ -114,7 +114,7 @@
 
   <section class="card" data-testid="seccion-cajeros">
     <h2 class="card-title">Cajeros y usuarios (B03) <app-trace-badge [items]="['B03']" /></h2>
-    <table class="table mb-3">
+    <div class="overflow-x-auto"><table class="table mb-3">
       <thead><tr><th>Id</th><th>Nombre</th><th>Perfil</th><th>Cajas</th></tr></thead>
       <tbody>
         @for (u of state().users; track u.id) {
@@ -126,8 +126,8 @@
           </tr>
         }
       </tbody>
-    </table>
-    <div class="mb-2 grid gap-2 md:grid-cols-4">
+    </table></div>
+    <div class="mb-2 grid gap-2 @3xl:grid-cols-4">
       <input class="input" placeholder="Nombre genérico ficticio" data-testid="nuevo-usuario" [(ngModel)]="userName" />
       <select class="input" data-testid="usuario-perfil" [(ngModel)]="userProfile">
         @for (p of profiles; track p) {
@@ -142,7 +142,7 @@
       </select>
       <button type="button" class="btn btn-primary" data-testid="crear-usuario" (click)="createUser()">Crear y asignar</button>
     </div>
-    <div class="grid gap-2 md:grid-cols-3">
+    <div class="grid gap-2 @3xl:grid-cols-3">
       <select class="input" data-testid="asignar-usuario" [(ngModel)]="assignUser">
         <option value="">— Usuario —</option>
         @for (u of state().users; track u.id) {
@@ -159,21 +159,21 @@
     </div>
   </section>
 
-  <section class="card xl:col-span-2" data-testid="seccion-dispositivos">
+  <section class="card @5xl:col-span-2" data-testid="seccion-dispositivos">
     <h2 class="card-title">Dispositivos lógicos (B04 · P2) <span class="text-xs font-normal text-muted">No afectan la operación de la caja</span> <app-trace-badge [items]="['B04']" /></h2>
     @if (state().devices.length) {
-      <table class="table mb-3">
+      <div class="overflow-x-auto"><table class="table mb-3">
         <thead><tr><th>Id</th><th>Caja</th><th>Tipo</th><th>Serial</th><th>Estado</th></tr></thead>
         <tbody>
           @for (d of state().devices; track d.id) {
             <tr [attr.data-testid]="'dispositivo-' + d.id"><td class="font-mono text-xs">{{ d.id }}</td><td>{{ d.registerId }}</td><td>{{ d.type }}</td><td>{{ d.serial }}</td><td>{{ d.active ? 'Activo' : 'Inactivo' }}</td></tr>
           }
         </tbody>
-      </table>
+      </table></div>
     } @else {
       <app-empty-state title="Sin dispositivos registrados" />
     }
-    <div class="grid gap-2 md:grid-cols-4">
+    <div class="grid gap-2 @3xl:grid-cols-4">
       <select class="input" data-testid="dispositivo-caja" [(ngModel)]="deviceRegister">
         <option value="">— Caja —</option>
         @for (r of state().registers; track r.id) {

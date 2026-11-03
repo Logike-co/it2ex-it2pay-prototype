@@ -60,13 +60,13 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-lg border border-line bg-surface p-4 shadow-sm;
+    @apply min-w-0 rounded-lg border border-line bg-surface p-4 shadow-sm;
   }
   .card-title {
     @apply mb-3 flex flex-wrap items-center gap-2 text-base font-semibold text-ink;
   }
   .btn {
-    @apply inline-flex items-center gap-1 rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex shrink-0 items-center justify-center gap-1 rounded-md text-center border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
     @apply border-primary bg-primary text-primary-contrast hover:bg-primary hover:opacity-90;

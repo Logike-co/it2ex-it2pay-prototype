@@ -8,7 +8,7 @@
   </div>
 
   <header class="no-print border-b border-line bg-surface px-4 py-2">
-    <div class="flex flex-wrap items-center gap-3">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <button
         type="button"
         class="btn md:hidden"
@@ -33,7 +33,7 @@
           }
         </select>
       </label>
-      <div class="min-w-0 flex-1 text-xs text-muted" data-testid="sesion-encabezado">
+      <div class="order-last w-full text-xs text-muted" data-testid="sesion-encabezado">
         @if (session(); as s) {
           <span class="font-medium text-ink">{{ s.text }}</span>
           · {{ s.user }} · Turno: {{ s.shift }}
@@ -41,29 +41,31 @@
           Sin caja seleccionada
         }
       </div>
-      <button
-        type="button"
-        class="btn"
-        data-testid="btn-guia-demo"
-        title="Ctrl+Shift+D"
-        [class.btn-primary]="demo.hudOpen()"
-        (click)="demo.toggleHud()"
-      >
-        Guía de demo
-      </button>
-      <label class="flex items-center gap-1 text-sm" title="Historias (US) y requerimientos (RF) de cada vista">
-        <input type="checkbox" data-testid="btn-trazabilidad" [checked]="demo.showTrace()" (change)="demo.toggleTrace()" />
-        Trazabilidad
-      </label>
-      <button type="button" class="btn" data-testid="btn-presentador" (click)="store.presenterOpen.set(!store.presenterOpen())">
-        Panel del presentador
-      </button>
-      <button type="button" class="btn btn-danger" data-testid="btn-reiniciar" (click)="confirmReset.set('scenario')">
-        Reiniciar escenario
-      </button>
-      <button type="button" class="btn" data-testid="btn-reiniciar-todo" (click)="confirmReset.set('all')">
-        Reiniciar todo
-      </button>
+      <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          class="btn"
+          data-testid="btn-guia-demo"
+          title="Ctrl+Shift+D"
+          [class.btn-primary]="demo.hudOpen()"
+          (click)="demo.toggleHud()"
+        >
+          Guía de demo
+        </button>
+        <label class="flex items-center gap-1 text-sm" title="Historias (US) y requerimientos (RF) de cada vista">
+          <input type="checkbox" data-testid="btn-trazabilidad" [checked]="demo.showTrace()" (change)="demo.toggleTrace()" />
+          Trazabilidad
+        </label>
+        <button type="button" class="btn" data-testid="btn-presentador" (click)="store.presenterOpen.set(!store.presenterOpen())">
+          Panel del presentador
+        </button>
+        <button type="button" class="btn btn-danger" data-testid="btn-reiniciar" (click)="confirmReset.set('scenario')">
+          Reiniciar escenario
+        </button>
+        <button type="button" class="btn" data-testid="btn-reiniciar-todo" (click)="confirmReset.set('all')">
+          Reiniciar todo
+        </button>
+      </div>
     </div>
   </header>
 
@@ -122,7 +124,8 @@
 
   <div class="flex flex-1">
     <nav
-      class="no-print w-56 shrink-0 border-r border-line bg-surface p-2 md:block"
+      class="no-print shrink-0 border-r border-line bg-surface p-2 md:block"
+      [class]="demo.hudOpen() ? 'w-16 2xl:w-56' : 'w-56'"
       [class.hidden]="!menuOpen()"
       aria-label="Vistas del simulador"
       data-testid="menu"
@@ -132,21 +135,25 @@
           <li>
             <a
               [routerLink]="'/' + v.path"
-              routerLinkActive="bg-primary text-primary-contrast"
+              routerLinkActive
+              #rla="routerLinkActive"
+              ariaCurrentWhenActive="page"
               [routerLinkActiveOptions]="{ exact: true }"
-              class="flex gap-2 rounded px-2 py-1.5 text-sm hover:bg-surface-alt"
+              class="flex gap-2 rounded px-2 py-1.5 text-sm"
+              [class]="rla.isActive ? 'bg-primary text-primary-contrast' : 'hover:bg-surface-alt'"
               [attr.data-testid]="'nav-' + v.id"
+              [attr.title]="v.id + ' · ' + v.name"
               (click)="menuOpen.set(false)"
             >
               <span class="font-mono text-xs opacity-70">{{ v.id }}</span>
-              <span>{{ v.name }}</span>
+              <span [class]="demo.hudOpen() ? 'hidden 2xl:inline' : ''">{{ v.name }}</span>
             </a>
           </li>
         }
       </ul>
     </nav>
 
-    <main class="min-w-0 flex-1 overflow-x-auto p-4">
+    <main class="@container min-w-0 flex-1 overflow-x-auto p-4">
       @if (store.flash(); as f) {
         <div
           class="no-print mb-3 flex items-start justify-between gap-2 rounded border px-3 py-2 text-sm"

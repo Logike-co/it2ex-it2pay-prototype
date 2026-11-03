@@ -1,7 +1,7 @@
 <h1 class="page-title mb-3">V07 · Consulta transaccional</h1>
 
 <section class="card mb-4">
-  <div class="grid gap-2 md:grid-cols-6">
+  <div class="grid gap-2 @3xl:grid-cols-6">
     <label>
       <span class="label">Estado</span>
       <select class="input" data-testid="filtro-estado" [ngModel]="fStatus()" (ngModelChange)="fStatus.set($event)">
@@ -38,7 +38,7 @@
         }
       </select>
     </label>
-    <label class="md:col-span-2">
+    <label class="@3xl:col-span-2">
       <span class="label">Buscar (id, referencia o servicio)</span>
       <input class="input" data-testid="filtro-texto" [ngModel]="fText()" (ngModelChange)="fText.set($event)" />
     </label>
@@ -46,15 +46,15 @@
   <button type="button" class="btn mt-2" (click)="clearFilters()">Limpiar filtros</button>
 </section>
 
-<div class="grid gap-4 xl:grid-cols-5">
-  <section class="card overflow-x-auto xl:col-span-3">
+<div class="grid gap-4 @5xl:grid-cols-5">
+  <section class="card overflow-x-auto @5xl:col-span-3">
     <h2 class="card-title">
       Transacciones del escenario
       <span class="text-sm font-normal text-muted" data-testid="conteo-transacciones">{{ rows().length }} transacciones</span>
       <app-trace-badge [items]="['F13']" />
     </h2>
     @if (rows().length) {
-      <table class="table" data-testid="tabla-transacciones">
+      <div class="overflow-x-auto"><table class="table" data-testid="tabla-transacciones">
         <thead>
           <tr><th>TX</th><th>Hora</th><th>Caja</th><th>Tipo · servicio</th><th>Referencia</th><th class="num">Valor</th><th>Estado</th></tr>
         </thead>
@@ -76,13 +76,13 @@
             </tr>
           }
         </tbody>
-      </table>
+      </table></div>
     } @else {
       <app-empty-state title="Sin transacciones para estos filtros" detail="Cambie o limpie los filtros." />
     }
   </section>
 
-  <section class="card xl:col-span-2" data-testid="detalle-transaccion">
+  <section class="card @5xl:col-span-2" data-testid="detalle-transaccion">
     @if (selected(); as t) {
       <h2 class="card-title">{{ t.id }} <app-status-badge [status]="t.status" /> <app-trace-badge [items]="['F13']" /></h2>
       <dl class="grid grid-cols-2 gap-1 text-sm">
@@ -135,13 +135,13 @@
       <option value="sucursal">Por establecimiento (sucursal)</option>
     </select>
   </h2>
-  <table class="table max-w-2xl" data-testid="tabla-agrupada">
+  <div class="overflow-x-auto"><table class="table max-w-2xl" data-testid="tabla-agrupada">
     <thead><tr><th>{{ grouping() === 'caja' ? 'Caja' : 'Establecimiento' }}</th><th class="num">Transacciones</th><th class="num">Total</th></tr></thead>
     <tbody>
       @for (g of groups(); track g.key) {
         <tr [attr.data-testid]="'grupo-' + g.key"><td>{{ g.label }}</td><td class="num">{{ g.count }}</td><td class="num">{{ g.total | money }}</td></tr>
       }
     </tbody>
-  </table>
+  </table></div>
   <p class="mt-2 text-xs text-muted"><a routerLink="/dashboard" class="underline">Volver al dashboard</a></p>
 </section>

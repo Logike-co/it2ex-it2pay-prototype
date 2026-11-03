@@ -11,17 +11,20 @@ import {
 } from '../core/simulation/format';
 import { PaymentMethod, TransactionType, TxStatus } from '../core/simulation/model';
 
+/** En pantalla, el signo y la cifra nunca se separan en dos líneas («$ 120.000»). */
+const keepTogether = (text: string): string => text.replace(/ /g, '\u00a0');
+
 @Pipe({ name: 'money' })
 export class MoneyPipe implements PipeTransform {
   transform(value: number | null | undefined): string {
-    return value === null || value === undefined ? '—' : formatMoney(value);
+    return value === null || value === undefined ? '—' : keepTogether(formatMoney(value));
   }
 }
 
 @Pipe({ name: 'signed' })
 export class SignedPipe implements PipeTransform {
   transform(value: number): string {
-    return formatSigned(value);
+    return keepTogether(formatSigned(value));
   }
 }
 

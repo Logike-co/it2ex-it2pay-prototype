@@ -3,7 +3,7 @@
 <section class="card mb-4" data-testid="liquidacion-viva">
   <h2 class="card-title">Comisiones del periodo demo (vivo) <app-legend /> <app-trace-badge [items]="['C09']" /></h2>
   @if (rows().length) {
-    <table class="table">
+    <div class="overflow-x-auto"><table class="table">
       <thead><tr><th>Cadena</th><th>Servicio</th><th class="num">Transacciones</th><th class="num">Comisión cadena</th><th class="num">Comisión IT2EX</th></tr></thead>
       <tbody>
         @for (r of rows(); track r.chainId + r.serviceId) {
@@ -22,7 +22,7 @@
         </tr>
         <tr><td colspan="4">Total comisiones</td><td class="num" data-testid="liq-total">{{ totals().total | money }}</td></tr>
       </tfoot>
-    </table>
+    </table></div>
   } @else {
     <app-empty-state title="Sin transacciones vigentes en el periodo demo" />
   }
@@ -47,10 +47,10 @@
   }
 </section>
 
-<div class="grid gap-4 xl:grid-cols-2">
+<div class="grid gap-4 @5xl:grid-cols-2">
   <section class="card" data-testid="cartera">
     <h2 class="card-title">Cartera y saldos pendientes (C10 · P2) <app-legend /> <app-trace-badge [items]="['C10']" /></h2>
-    <table class="table">
+    <div class="overflow-x-auto"><table class="table">
       <thead><tr><th>Concepto</th><th>Deudor → acreedor</th><th>Antigüedad</th><th class="num">Valor</th></tr></thead>
       <tbody>
         @for (p of portfolio(); track p.concept + p.aging) {
@@ -60,7 +60,7 @@
         <tr class="font-semibold"><td colspan="3">Total comisión de cadenas por cobrar</td><td class="num" data-testid="cartera-cadenas">{{ portfolioTotal('Comisión de cadenas') | money }}</td></tr>
         <tr><td colspan="3">Pendiente por entregar de las cadenas</td><td class="num" data-testid="cartera-pendiente">{{ pending() | money }}</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <app-illustrative>Cartera = saldos precargados por antigüedad + comisiones vivas del periodo demo.</app-illustrative>
   </section>
 
@@ -77,14 +77,14 @@
           <p>Emisor: <span data-testid="cc-emisor">{{ c.issuer }}</span></p>
           <p>Receptor: <span data-testid="cc-receptor">{{ c.receiver }}</span></p>
           <p>Periodo: {{ c.period }} · Liquidación de origen: {{ c.liquidationId }}</p>
-          <table class="table my-2">
+          <div class="overflow-x-auto"><table class="table my-2">
             <thead><tr><th>Concepto</th><th class="num">Transacciones</th><th class="num">Valor</th></tr></thead>
             <tbody>
               @for (it of c.items; track it.concept) {
                 <tr><td data-testid="cc-concepto">{{ it.concept }}</td><td class="num">{{ it.quantity }}</td><td class="num">{{ it.value | money }}</td></tr>
               }
             </tbody>
-          </table>
+          </table></div>
           <p class="font-semibold">Total: <span data-testid="cc-total">{{ c.total | money }}</span></p>
           <p class="text-xs">Impuestos: no calculados en la simulación</p>
           <p class="mt-2 text-center font-bold text-band">SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL</p>

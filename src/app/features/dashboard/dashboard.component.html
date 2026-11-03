@@ -24,7 +24,7 @@
 @let i = ind();
 <section class="card mb-4" data-testid="kpis-financieros">
   <h2 class="card-title">Indicadores financieros <app-legend /> <app-trace-badge [items]="['C12', 'C13']" /></h2>
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  <div class="grid gap-3 @xl:grid-cols-2 @4xl:grid-cols-4">
     <a routerLink="/transacciones" [queryParams]="{ estado: 'APPROVED' }" class="rounded border border-line p-3 hover:bg-surface-alt">
       <p class="text-xs text-muted">Recaudo confirmado</p>
       <p class="text-2xl font-semibold" data-testid="kpi-recaudo">{{ i.income | money }}</p>
@@ -63,10 +63,10 @@
   <app-illustrative>Recaudo confirmado = Σ valor de TX aprobadas (recaudo, recarga, depósito); tasa = autorizadas / (autorizadas + rechazadas), sin reversos ni transacciones en verificación.</app-illustrative>
 </section>
 
-<div class="grid gap-4 lg:grid-cols-3">
+<div class="grid gap-4 @4xl:grid-cols-3">
   <section class="card" data-testid="estados">
     <h2 class="card-title">Estados</h2>
-    <table class="table">
+    <div class="overflow-x-auto"><table class="table">
       <thead><tr><th>Estado</th><th class="num">Cantidad</th><th class="num">Valor</th></tr></thead>
       <tbody>
         <tr><td><a class="underline" routerLink="/transacciones" [queryParams]="{ estado: 'REJECTED' }">Rechazadas</a></td><td class="num" data-testid="cnt-rechazadas">{{ i.rejected.count }}</td><td class="num">{{ i.rejected.value | money }}</td></tr>
@@ -74,34 +74,34 @@
         <tr><td><a class="underline" routerLink="/transacciones" [queryParams]="{ estado: 'REVERSED' }">Reversadas</a></td><td class="num" data-testid="cnt-reversadas">{{ i.reversed.count }}</td><td class="num">{{ i.reversed.value | money }}</td></tr>
         <tr><td><a class="underline" routerLink="/transacciones" [queryParams]="{ estado: 'PENDING_VERIFICATION' }" data-testid="link-en-verificacion">En verificación</a></td><td class="num" data-testid="cnt-verificacion">{{ i.inVerification.count }}</td><td class="num">{{ i.inVerification.value | money }}</td></tr>
       </tbody>
-    </table>
+    </table></div>
   </section>
   <section class="card">
     <h2 class="card-title">Recaudo por línea <app-legend /></h2>
-    <table class="table">
+    <div class="overflow-x-auto"><table class="table">
       <tbody>
         @for (l of lines; track l) {
           <tr><td>{{ l }}</td><td class="num">{{ i.incomeByLine[l] | money }}</td></tr>
         }
       </tbody>
-    </table>
+    </table></div>
   </section>
   <section class="card">
     <h2 class="card-title">Recaudo por cadena <app-legend /></h2>
-    <table class="table">
+    <div class="overflow-x-auto"><table class="table">
       <tbody>
         @for (c of state().chains; track c.id) {
           <tr><td>{{ c.name }}</td><td class="num" [attr.data-testid]="'recaudo-' + c.id">{{ i.incomeByChain[c.id] | money }}</td></tr>
         }
       </tbody>
-    </table>
+    </table></div>
   </section>
 </div>
 
 <section class="card mt-4">
   <h2 class="card-title">Últimas operaciones</h2>
   @if (i.latest.length) {
-    <table class="table" data-testid="ultimas-operaciones">
+    <div class="overflow-x-auto"><table class="table" data-testid="ultimas-operaciones">
       <thead><tr><th>TX</th><th>Hora</th><th>Cadena</th><th>Tipo · servicio</th><th class="num">Valor</th><th>Estado</th></tr></thead>
       <tbody>
         @for (t of i.latest; track t.id) {
@@ -115,7 +115,7 @@
           </tr>
         }
       </tbody>
-    </table>
+    </table></div>
   } @else {
     <p class="text-sm text-muted">Sin operaciones para este filtro.</p>
   }

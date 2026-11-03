@@ -29,7 +29,7 @@ import { rfOf, viewTrace } from './traceability';
         </button>
       </div>
       @if (open()) {
-        <div class="mt-2 grid gap-2 md:grid-cols-2">
+        <div class="mt-2 grid gap-2 @3xl:grid-cols-2">
           <table class="w-full">
             <thead>
               <tr class="text-left text-muted"><th>Ítem</th><th>Nivel</th><th>Historia / requerimiento</th></tr>

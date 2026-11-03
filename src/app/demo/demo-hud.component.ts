@@ -113,8 +113,8 @@ import { itemsTrace } from './traceability';
         </details>
 
         <label class="mt-2 flex items-center gap-2 text-xs">
-          <span class="text-muted">Saltar a vista</span>
-          <select class="input w-auto text-xs" data-testid="guia-saltar-vista" (change)="jump($event)">
+          <span class="whitespace-nowrap text-muted">Saltar a vista</span>
+          <select class="input min-w-0 flex-1 text-xs" data-testid="guia-saltar-vista" (change)="jump($event)">
             <option value="">—</option>
             @for (v of views; track v.id) {
               <option [value]="v.path">{{ v.id }} · {{ v.name }}</option>

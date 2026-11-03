@@ -3,7 +3,7 @@
   Elija el escenario de referencia, la cadena, la sucursal y la caja, e ingrese con un perfil ficticio.
 </p>
 
-<div class="mb-6 grid gap-4 md:grid-cols-2">
+<div class="mb-6 grid gap-4 @3xl:grid-cols-2">
   @for (c of scenarioCards(); track c.id) {
     <section class="card" [class.ring-2]="c.active" [class.ring-primary]="c.active" [attr.data-testid]="'tarjeta-' + c.id">
       <h2 class="card-title">
@@ -35,12 +35,12 @@
   @if (state().session.registerId) {
     <p class="mb-3 rounded bg-success-soft px-3 py-2 text-sm text-success" data-testid="sesion-activa">
       Sesión activa en {{ state().session.registerId }} · turno {{ state().session.shiftId ?? 'cerrado' }}.
-      <a routerLink="/caja" class="underline">Ir a la terminal de caja</a>
+      <a routerLink="/caja" class="whitespace-nowrap underline">Ir a la terminal de caja</a>
       ·
-      <button type="button" class="underline" (click)="logout()">Salir</button>
+      <button type="button" class="whitespace-nowrap underline" (click)="logout()">Salir</button>
     </p>
   }
-  <div class="grid gap-3 md:grid-cols-2">
+  <div class="grid gap-3 @3xl:grid-cols-2">
     <label>
       <span class="label">Cadena (aliado comercial)</span>
       <select class="input" data-testid="sel-cadena" [(ngModel)]="chainId" (ngModelChange)="onChain()">
@@ -85,14 +85,14 @@
         </label>
         <p class="self-end text-xs text-muted">La caja no tiene turno abierto: al ingresar se abre uno con esta base.</p>
       } @else {
-        <p class="text-sm text-muted md:col-span-2">Caja abierta con el turno {{ r.currentShiftId }}.</p>
+        <p class="text-sm text-muted @3xl:col-span-2">Caja abierta con el turno {{ r.currentShiftId }}.</p>
       }
     }
   </div>
   @if (registerId) {
     <p class="mt-3 rounded bg-surface-alt px-3 py-2 text-sm font-medium" data-testid="seleccion-encabezado">{{ selectionHeader() }}</p>
   }
-  <div class="mt-4 flex gap-2">
+  <div class="mt-4 flex flex-wrap gap-2">
     <button type="button" class="btn btn-primary" data-testid="btn-ingresar" [disabled]="!registerId || !userId" (click)="login()">
       Ingresar
     </button>
