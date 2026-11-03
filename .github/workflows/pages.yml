@@ -1,0 +1,57 @@
+# Publica el simulador en GitHub Pages en cada push a main (o a mano desde la pestaña Actions).
+# Antes de publicar verifica lint y pruebas unitarias; si fallan, el sitio no se actualiza.
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint y pruebas unitarias
+        run: |
+          npm run lint
+          npx jest --ci
+
+      - name: Build bajo la ruta del repositorio
+        run: npx ng build --base-href "/${{ github.event.repository.name }}/"
+
+      # Pages no conoce las rutas de Angular: un enlace directo (p. ej. /convenios) cae en
+      # 404.html, que es la misma aplicación y resuelve la ruta en el navegador.
+      - name: Respaldo para enlaces directos
+        run: cp dist/it2pay-simulador/browser/index.html dist/it2pay-simulador/browser/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/it2pay-simulador/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
