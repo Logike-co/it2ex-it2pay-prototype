@@ -1,10 +1,13 @@
 import { expect, Page, test } from '@playwright/test';
 import { enGuia } from './guia';
+import { abrirTurno, ingresarComo, irA, limpio } from './sesion';
 
 /**
  * QA T.4c — Reglas A–D y caminos de error en la interfaz (flow-map §3.3,
  * R-04..R-10, escenarios E19..E42). Cada prueba parte de Supermercados
- * recién reiniciado, en CJ-S1-01 con CAJ-S01 (antecedente común de §5).
+ * recién reiniciado, en CJ-S1-01 con COL-S01 (antecedente común de §5).
+ * Con el acceso por rol (D-T4) el Colocador opera la caja; el Operador consulta la red,
+ * los cupos y el dashboard y es el único que reversa; Finanzas concilia.
  */
 
 /** Sin errores de consola ni excepciones de página en ninguna prueba de QA. */
@@ -22,31 +25,44 @@ test.afterEach(() => {
   expect(consoleErrors).toEqual([]);
 });
 
-const fresh = async (page: Page) => {
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+const fresh = (page: Page) => limpio(page);
+
+/** Colocador que opera la caja en la prueba en curso. */
+let colocador = 'COL-S01';
+
+/** El Colocador entra y retoma el turno abierto de su caja. */
+const login = async (page: Page, user: string) => {
+  colocador = user;
+  await ingresarComo(page, user);
+  await expect(page).toHaveURL(/\/caja$/);
 };
 
-const login = async (page: Page, chain: string, branch: string, register: string, user: string) => {
-  await page.getByTestId('nav-V01').click();
-  await page.getByTestId('sel-cadena').selectOption(chain);
-  await page.getByTestId('sel-sucursal').selectOption(branch);
-  await page.getByTestId('sel-caja').selectOption(register);
-  await page.getByTestId('sel-usuario').selectOption(user);
-  await page.getByTestId('btn-ingresar').click();
-  await expect(page).toHaveURL(/\/caja$/);
+/** Vuelve a la sesión del Colocador si otro perfil estaba en pantalla. */
+const comoColocador = async (page: Page) => {
+  if ((await page.getByTestId('usuario-sesion').textContent())?.includes(colocador)) {
+    return;
+  }
+  await ingresarComo(page, colocador);
+};
+
+/** Entra con otro perfil (Operador, Finanzas…) y abre la vista. */
+const como = async (page: Page, user: string, ruta: string) => {
+  if (!(await page.getByTestId('usuario-sesion').textContent())?.includes(user)) {
+    await ingresarComo(page, user);
+  }
+  await irA(page, ruta);
 };
 
 const freshS1 = async (page: Page) => {
   await fresh(page);
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
+  await login(page, 'COL-S01');
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 730.200');
 };
 
 /** Recaudo ENEL hasta el paso 3 (sin autorizar). */
 const newOp = async (page: Page) => {
-  await page.getByTestId('nav-V05').click();
+  await comoColocador(page);
+  await irA(page, 'caja');
   await expect(page).toHaveURL(/\/caja$/);
   await page.keyboard.press('F1');
 };
@@ -100,13 +116,21 @@ const deposito = async (page: Page, txId: string) => {
 const estado = (page: Page) => page.getByTestId('resultado-estado');
 
 const cupoDisponible = async (page: Page, row: string) => {
-  await page.getByTestId('nav-V08').click();
+  await como(page, 'OPE-S01', 'cupos');
   return page.getByTestId(`cupo-${row}`).getByTestId('disponible');
 };
 
 const esperadoCaja = async (page: Page) => {
-  await page.getByTestId('nav-V05').click();
+  await comoColocador(page);
+  await irA(page, 'caja');
   return page.getByTestId('efectivo-esperado');
+};
+
+/** El Operador abre el resultado de una transacción (único que reversa, RN-ACC-05). */
+const resultadoOperador = async (page: Page, txId: string) => {
+  await como(page, 'OPE-S01', 'dashboard');
+  await page.goto(`/caja/resultado?tx=${txId}`);
+  await expect(page).toHaveURL(new RegExp(`tx=${txId}`));
 };
 
 test('E16/E17/E24/E25/E28: catálogo, consulta de obligación y bloqueos de captura', async ({ page }) => {
@@ -148,10 +172,10 @@ test('E16/E17/E24/E25/E28: catálogo, consulta de obligación y bloqueos de capt
     'Obligación en verificación por la transacción TX-S-0010: resuelva su estado antes de un nuevo pago'
   );
   // Ninguna consulta creó transacción.
-  await page.getByTestId('nav-V07').click();
+  await como(page, 'OPE-S01', 'transacciones');
   await expect(page.getByTestId('conteo-transacciones')).toHaveText('10 transacciones');
   // E16 segunda parte: CJ-S2-01 no ofrece depósito ni retiro.
-  await login(page, 'CAD-S1', 'SUC-S2', 'CJ-S2-01', 'CAJ-S03');
+  await login(page, 'COL-S03');
   await expect(page.getByTestId('servicio-SRV-13')).toHaveCount(0);
   await expect(page.getByTestId('servicio-SRV-14')).toHaveCount(0);
 });
@@ -201,7 +225,7 @@ test('E18/E08/E40: recaudo aprobado, indicadores y anulación en el mismo turno'
   await expect(await esperadoCaja(page)).toHaveText('$ 828.900');
   await expect(await cupoDisponible(page, 'PDV-S1-Recaudos')).toHaveText('$ 3.851.100');
   // E08
-  await page.getByTestId('nav-V02').click();
+  await como(page, 'OPE-S01', 'dashboard');
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 711.400');
   await expect(page.getByTestId('kpi-vigentes')).toHaveText('6');
   await expect(page.getByTestId('kpi-tasa')).toHaveText('88,9 %');
@@ -214,21 +238,21 @@ test('E18/E08/E40: recaudo aprobado, indicadores y anulación en el mismo turno'
   await page.getByTestId('ref-0').fill('4500112100');
   await page.getByTestId('btn-continuar-1').click();
   await expect(page.getByTestId('error-caja')).toBeVisible();
-  // E40: anular el recaudo.
+  // E40: el Colocador anula el recaudo.
   await page.goto('/caja/resultado?tx=TX-S-0011');
   await page.getByTestId('btn-anular').click();
-  await page.getByTestId('motivo-anular').selectOption('Error del cajero');
+  await page.getByTestId('motivo-anular').selectOption('Error del colocador');
   await page.getByTestId('confirmar-anular').click();
   await expect(estado(page)).toHaveText('Anulada');
-  await expect(page.getByTestId('comprobante')).toContainText('Anulación: Error del cajero');
+  await expect(page.getByTestId('comprobante')).toContainText('Anulación: Error del colocador');
   await expect(await esperadoCaja(page)).toHaveText('$ 730.200');
   await expect(await cupoDisponible(page, 'PDV-S1-Recaudos')).toHaveText('$ 3.949.800');
-  await page.getByTestId('nav-V02').click();
+  await como(page, 'OPE-S01', 'dashboard');
   await expect(page.getByTestId('kpi-com-cadena')).toHaveText('$ 2.050');
   await expect(page.getByTestId('kpi-com-it2ex')).toHaveText('$ 1.000');
-  await page.getByTestId('nav-V07').click();
+  await irA(page, 'transacciones');
   await expect(page.getByTestId('conteo-transacciones')).toHaveText('11 transacciones');
-  await page.getByTestId('nav-V10').click();
+  await como(page, 'FIN-S01', 'conciliacion');
   await page.getByTestId('btn-conciliar').click();
   await expect(page.getByTestId('comparacion').locator('tr', { hasText: 'TX-S-0011' })).toContainText('anulada');
   await newOp(page);
@@ -247,7 +271,7 @@ test('E29/E35: rechazo por gatillo y desenlace forzado por el panel', async ({ p
   await expect(page.getByTestId('resultado-autorizacion')).toHaveText('—');
   await expect(page.getByTestId('btn-imprimir')).toBeDisabled();
   await expect(await esperadoCaja(page)).toHaveText('$ 730.200');
-  await page.getByTestId('nav-V02').click();
+  await como(page, 'OPE-S01', 'dashboard');
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 612.700');
   await expect(page.getByTestId('kpi-tasa')).toHaveText('77,8 %');
   await newOp(page);
@@ -272,15 +296,16 @@ test('E30/E31/E32: timeout → consulta aprobada, rechazada definitiva y en proc
     'Sin respuesta del autorizador (simulado): operación en verificación'
   );
   await expect(page.getByTestId('btn-reintentar')).toHaveCount(0);
-  await page.getByTestId('nav-V08').click();
+  await como(page, 'OPE-S01', 'cupos');
   await expect(page.getByTestId('cupo-PDV-S1-Recaudos').getByTestId('en-verificacion')).toHaveText('$ 148.000');
+  await comoColocador(page);
   await page.goto('/caja/resultado?tx=TX-S-0011');
   await page.getByTestId('btn-consultar').click();
   await expect(estado(page)).toHaveText('Aprobada');
   await expect(page.getByTestId('traza')).toContainText('Enviando');
   await expect(page.getByTestId('traza')).toContainText('En verificación');
   await expect(page.getByTestId('traza')).toContainText('Aprobada');
-  await page.getByTestId('nav-V07').click();
+  await irA(page, 'transacciones');
   await expect(page.getByTestId('fila-TX-S-0012')).toHaveCount(0);
 
   // E31: 409 → rechazada definitiva, se suelta la reserva y la obligación vuelve a Pendiente.
@@ -291,7 +316,7 @@ test('E30/E31/E32: timeout → consulta aprobada, rechazada definitiva y en proc
   await expect(page.getByTestId('mensaje-accion')).toHaveText('Rechazada definitiva: no se reintenta');
   await expect(page.getByTestId('mensaje-accion')).toHaveClass(/text-error/);
   await expect(page.getByTestId('btn-reintentar')).toHaveCount(0);
-  await page.getByTestId('nav-V08').click();
+  await como(page, 'OPE-S01', 'cupos');
   await expect(page.getByTestId('cupo-PDV-S1-Recaudos').getByTestId('en-verificacion')).toHaveText('$ 120.000');
   await newOp(page);
   await page.getByTestId('servicio-SRV-01').click();
@@ -319,7 +344,7 @@ test('E33/E34: sin registro con y sin idempotencia', async ({ page }) => {
   await page.getByTestId('btn-reintentar').click();
   await expect(estado(page)).toHaveText('Aprobada');
   await expect(page.getByTestId('resultado')).toContainText('IDEM-TX-S-0011');
-  await page.getByTestId('nav-V10').click();
+  await como(page, 'FIN-S01', 'conciliacion');
   await page.getByTestId('btn-conciliar').click();
   await expect(page.getByTestId('comparacion').locator('tr', { hasText: 'TX-S-0011' })).toHaveCount(1);
   await expect(page.getByTestId('comparacion').locator('tr', { hasText: 'TX-S-0011' })).toContainText('Conciliada');
@@ -333,7 +358,7 @@ test('E33/E34: sin registro con y sin idempotencia', async ({ page }) => {
   await expect(page.getByTestId('mensaje-accion')).not.toHaveClass(/text-success/);
   await expect(estado(page)).toHaveText('En verificación');
   await expect(page.getByTestId('btn-reintentar')).toHaveCount(0);
-  await page.getByTestId('nav-V10').click();
+  await como(page, 'FIN-S01', 'conciliacion');
   await expect(page.getByTestId('excepcion-TX-S-0012').getByTestId('excepcion-tipo')).toContainText('Solo en IT2Pay');
 });
 
@@ -352,7 +377,7 @@ test('E36/E37: comprobante DEMO completo, vista de impresión y sin comprobante 
     'Cadena: Mercado Central Demo · Sucursal Norte',
     'PDV: PDV-S1',
     'Caja: CJ-S1-01',
-    'Cajero: CAJ-S01',
+    'Colocador: COL-S01',
     'Fecha y hora:',
     'Servicio: ENEL (ficticio)',
     'Referencia: 4500112100',
@@ -388,6 +413,8 @@ test('E36/E37: comprobante DEMO completo, vista de impresión y sin comprobante 
 test('E39 y reverso rechazado: timeout del reverso sin duplicarlo y nueva solicitud tras rechazo', async ({ page }) => {
   await freshS1(page);
   await recarga(page, 'TX-S-0011');
+  // Solo el Operador reversa (RN-ACC-05).
+  await resultadoOperador(page, 'TX-S-0011');
   await openPanel(page);
   await page.getByTestId('panel-reverso').selectOption('timeout-aprobado');
   await page.getByTestId('btn-reversar').click();
@@ -399,7 +426,7 @@ test('E39 y reverso rechazado: timeout del reverso sin duplicarlo y nueva solici
   await expect(estado(page)).toHaveText('Aprobada');
   await expect(page.getByTestId('marca-reverso-pv')).toContainText('Reverso en verificación (TX-S-0012)');
   await expect(page.getByTestId('btn-reversar')).toBeDisabled();
-  await expect(page.getByTestId('btn-anular')).toBeDisabled();
+  await expect(page.getByTestId('btn-anular')).toHaveCount(0);
   await page.getByTestId('btn-consultar-reverso').click();
   await expect(estado(page)).toHaveText('Reversada');
   await expect(page.locator('[data-testid^="vinculada-"]')).toHaveCount(1);
@@ -410,6 +437,7 @@ test('E39 y reverso rechazado: timeout del reverso sin duplicarlo y nueva solici
 
   // Reverso rechazado: la original sigue aprobada y admite una nueva solicitud (R-07).
   await recarga(page, 'TX-S-0013');
+  await resultadoOperador(page, 'TX-S-0013');
   await openPanel(page);
   await page.getByTestId('panel-reverso').selectOption('rechazado');
   await page.getByTestId('btn-reversar').click();
@@ -427,6 +455,7 @@ test('E39 y reverso rechazado: timeout del reverso sin duplicarlo y nueva solici
 
   // Timeout del reverso → rechazado.
   await recarga(page, 'TX-S-0016');
+  await resultadoOperador(page, 'TX-S-0016');
   await openPanel(page);
   await page.getByTestId('panel-reverso').selectOption('timeout-rechazado');
   await page.getByTestId('btn-reversar').click();
@@ -455,7 +484,8 @@ test('E41/E42 y retiro: anulación por tipo', async ({ page }) => {
   await page.getByTestId('confirmar-anular').click();
   await expect(page.getByTestId('mensaje-accion')).toBeVisible();
   await expect(estado(page)).toHaveText('Aprobada');
-  await page.getByTestId('supervisor-anular').selectOption('SUP-S01');
+  // D-ACT-04: confirma el usuario Punto de Venta del PDV del depósito.
+  await page.getByTestId('pdv-anular').selectOption('PV-S01');
   await page.getByTestId('confirmar-anular').click();
   await expect(estado(page)).toHaveText('Anulada');
   await expect(await esperadoCaja(page)).toHaveText('$ 750.200');
@@ -479,17 +509,20 @@ test('E41/E42 y retiro: anulación por tipo', async ({ page }) => {
   await expect(await esperadoCaja(page)).toHaveText('$ 750.200');
   await retiro('123456', 'TX-S-0014');
   await expect(estado(page)).toHaveText('Aprobada');
-  await expect(page.getByTestId('btn-reversar')).toBeDisabled();
+  await expect(page.getByTestId('btn-reversar')).toHaveCount(0);
   await page.getByTestId('btn-anular').click();
   await expect(page.getByTestId('mensaje-accion')).toHaveText('Los retiros no se anulan en esta simulación (ilustrativo)');
   await expect(await esperadoCaja(page)).toHaveText('$ 700.200');
+  // Para el Operador, «Reversar» de un retiro está deshabilitado.
+  await resultadoOperador(page, 'TX-S-0014');
+  await expect(page.getByTestId('btn-reversar')).toBeDisabled();
 });
 
 test('E20/E21/E23: recarga, depósito y tarjeta afectan cupo, efectivo y cierre', async ({ page }) => {
   await freshS1(page);
   await recarga(page, 'TX-S-0011');
   await expect(page.getByTestId('resultado')).toBeVisible();
-  await page.getByTestId('nav-V07').click();
+  await como(page, 'OPE-S01', 'transacciones');
   await page.getByTestId('fila-TX-S-0011').click();
   await expect(page.getByTestId('detalle-transaccion')).toContainText('400 / 200');
   await expect(await cupoDisponible(page, 'PDV-S1-Recargas')).toHaveText('$ 880.000');
@@ -507,49 +540,54 @@ test('E20/E21/E23: recarga, depósito y tarjeta afectan cupo, efectivo y cierre'
   await expect(estado(page)).toHaveText('Aprobada');
   await expect(page.getByTestId('comprobante')).toContainText('Medio: Tarjeta débito');
   await expect(await esperadoCaja(page)).toHaveText('$ 950.200');
-  await page.getByTestId('nav-V09').click();
+  await irA(page, 'cierre');
   await page.getByTestId('cierre-caja').selectOption('CJ-S1-01');
   await expect(page.getByTestId('esperado-debito')).toContainText('$ 98.700');
 });
 
 test('E27: bloqueo por cupo insuficiente y por PDV sin cupo', async ({ page }) => {
   await fresh(page);
-  await login(page, 'CAD-S1', 'SUC-S2', 'CJ-S2-01', 'CAJ-S03');
+  await login(page, 'COL-S03');
   await enelToPay(page, '4500112100');
   await page.getByTestId('efectivo-recibido').fill('100000');
   await page.getByTestId('btn-autorizar').click();
   await expect(page.getByTestId('error-caja')).toHaveText('Cupo insuficiente: disponible $ 50.000 en Recaudos de PDV-S2');
   await expect(page).toHaveURL(/\/caja$/);
-  await page.getByTestId('nav-V08').click();
+  await como(page, 'OPE-S01', 'cupos');
   await expect(page.getByTestId('alertas-cupo')).toContainText('PDV-S2');
   await expect(page.locator('[data-testid^="alerta-ALR-"]')).toHaveCount(1);
-  await page.getByTestId('nav-V02').click();
+  await irA(page, 'dashboard');
   await expect(page.getByTestId('kpi-bloqueos')).toHaveText('1');
 
-  // PDV-S4 sin cupo (creado en V03, habilitado por herencia de CAD-S1).
-  await page.getByTestId('nav-V03').click();
+  // PDV-S4 sin cupo (creado en V03, habilitado por herencia de CAD-S1): el Asesor crea
+  // la sucursal y el PDV; su usuario Punto de Venta crea la caja y el Colocador.
+  await como(page, 'ASE-S01', 'red');
   await page.getByTestId('sucursal-cadena').selectOption('CAD-S1');
   await page.getByTestId('nueva-sucursal').fill('Sucursal Demo Nueva');
   await page.getByTestId('crear-sucursal').click();
   await page.getByTestId('pdv-sucursal').selectOption('SUC-S4');
   await page.getByTestId('nuevo-pdv').fill('Punto de servicios Nuevo');
   await page.getByTestId('crear-pdv').click();
+  await expect(page.getByTestId('aviso')).toContainText('PV-S04');
+  await como(page, 'PV-S04', 'red');
   await page.getByTestId('caja-pdv').selectOption('PDV-S4');
   await page.getByTestId('crear-caja').click();
-  await page.getByTestId('nuevo-usuario').fill('Cajero Demo 05');
+  await page.getByTestId('nuevo-usuario').fill('Colocador Demo 05');
   await page.getByTestId('usuario-caja').selectOption('CJ-S4-01');
   await page.getByTestId('crear-usuario').click();
-  await expect(page.getByTestId('aviso')).toContainText('CAJ-S05');
-  await login(page, 'CAD-S1', 'SUC-S4', 'CJ-S4-01', 'CAJ-S05');
+  await expect(page.getByTestId('aviso')).toContainText('COL-S05');
+  colocador = 'COL-S05';
+  await ingresarComo(page, 'COL-S05');
+  await abrirTurno(page, 'CJ-S4-01');
   await expect(page.getByTestId('servicio-SRV-01')).toContainText('Sin cupo asignado');
   await enelToPay(page, '4500112100');
   await page.getByTestId('efectivo-recibido').fill('100000');
   await page.getByTestId('btn-autorizar').click();
   await expect(page.getByTestId('error-caja')).toHaveText('PDV sin cupo asignado para Recaudos');
-  await page.getByTestId('nav-V08').click();
+  await como(page, 'OPE-S01', 'cupos');
   await expect(page.locator('[data-testid^="alerta-ALR-"]')).toHaveCount(2);
   await expect(page.getByTestId('alertas-cupo')).toContainText('PDV-S4');
   // La próxima transacción sigue siendo TX-S-0011.
-  await page.getByTestId('nav-V07').click();
+  await irA(page, 'transacciones');
   await expect(page.getByTestId('conteo-transacciones')).toHaveText('10 transacciones');
 });

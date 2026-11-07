@@ -10,6 +10,8 @@ import { PresetId } from './demo-script';
 import { itemsTrace } from './traceability';
 import { CodeTextComponent } from '../shared/code-text.component';
 import { DemoPresenterComponent } from './demo-presenter.component';
+import { RolesComponent } from '../features/roles/roles.component';
+import { AccessView } from '../core/access/access';
 
 /**
  * Guía de demo en pantalla (workflow T §1.4-1, X01): paso actual del guion con acción,
@@ -20,7 +22,7 @@ import { DemoPresenterComponent } from './demo-presenter.component';
  */
 @Component({
   selector: 'app-demo-hud',
-  imports: [CodeTextComponent, DemoPresenterComponent, FormsModule],
+  imports: [CodeTextComponent, DemoPresenterComponent, FormsModule, RolesComponent],
   // El panel es un hijo directo de la fila del shell: se acopla a la derecha sin tapar la vista.
   host: { class: 'contents' },
   template: `@if (demo.hudOpen()) {
@@ -78,6 +80,18 @@ import { DemoPresenterComponent } from './demo-presenter.component';
             {{ demo.preset().id }} · Paso {{ s.n }} de {{ demo.preset().steps.length }} · {{ s.view }}
           </p>
           <h2 class="text-base font-bold" data-testid="guia-paso-titulo">{{ s.title }}</h2>
+          <div class="mt-1 rounded border border-line bg-surface-alt px-2 py-1 text-xs" data-testid="guia-usuario-paso">
+            @if (demo.stepUser(); as u) {
+              Este paso se hace como <strong>{{ u.name }}</strong> ({{ u.profile }}, <span class="whitespace-nowrap">{{ u.id }}</span>).
+              @if (demo.needsSwitch()) {
+                <button type="button" class="btn btn-primary mt-1 w-full px-2 py-1 text-xs" data-testid="guia-ingresar-como" (click)="demo.signInAs(u.id)">
+                  Ingresar como {{ u.name }}
+                </button>
+              }
+            } @else {
+              Este paso se hace como <span class="whitespace-nowrap">{{ s.user }}</span>, que se crea en un paso anterior.
+            }
+          </div>
           @if (!demo.viewInStep()) {
             <p class="mt-1 rounded bg-warning-soft px-2 py-1 text-xs" data-testid="guia-fuera-de-vista">
               {{ demo.currentView() ?? 'Esta pantalla' }} no forma parte del guion de {{ demo.preset().id }}.
@@ -136,11 +150,15 @@ import { DemoPresenterComponent } from './demo-presenter.component';
           <span class="whitespace-nowrap text-muted">Saltar a vista</span>
           <select class="input min-w-0 flex-1 text-xs" data-testid="guia-saltar-vista" (change)="jump($event)">
             <option value="">—</option>
-            @for (v of views; track v.id) {
+            @for (v of views(); track v.id) {
               <option [value]="v.path">{{ v.id }} · {{ v.name }}</option>
             }
           </select>
         </label>
+
+        <button type="button" class="btn mt-2 w-full text-xs" data-testid="guia-matriz-roles" (click)="rolesOpen.set(true)">
+          Matriz de roles y casos de uso
+        </button>
 
         <app-demo-presenter />
       </div>
@@ -172,13 +190,26 @@ import { DemoPresenterComponent } from './demo-presenter.component';
       </div>
       <p class="border-t border-line px-3 py-1 text-[11px] text-muted">Ctrl+Shift+R reinicia el escenario en 1 clic</p>
     </aside>
+  }
+  @if (rolesOpen()) {
+    <div class="no-print fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Roles y accesos">
+      <div class="w-full max-w-6xl rounded bg-surface-alt p-4 shadow-lg" data-testid="dialogo-roles">
+        <div class="mb-3 flex items-center">
+          <h2 class="page-title flex-1">Roles y accesos</h2>
+          <button type="button" class="btn" data-testid="cerrar-roles" (click)="rolesOpen.set(false)">Cerrar</button>
+        </div>
+        <app-roles [embedded]="true" />
+      </div>
+    </div>
   }`,
 })
 export class DemoHudComponent {
   readonly demo = inject(DemoModeStore);
   readonly sim = inject(SimulatorStore);
   private readonly router = inject(Router);
-  readonly views = VIEWS;
+  /** Solo las vistas del perfil autenticado. */
+  readonly views = computed(() => VIEWS.filter((v) => this.sim.canView(v.id as AccessView)));
+  readonly rolesOpen = signal(false);
   readonly scenarios: { id: ScenarioId; name: string }[] = [
     { id: 'SUP', name: SCENARIO_SHORT.SUP },
     { id: 'PAR', name: SCENARIO_SHORT.PAR },

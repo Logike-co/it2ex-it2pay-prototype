@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Simulator } from '../../core/simulation/engine';
+import { creatableProfiles, Simulator } from '../../core/simulation/engine';
+import { AccessAction } from '../../core/access/access';
 import { DeviceType, ProfileName, Result } from '../../core/simulation/model';
 import { branchName, cashiersOfRegister, chainName, pdvName } from '../../core/simulation/selectors';
 import { SimulatorStore } from '../../core/state/simulator.store';
@@ -8,7 +9,11 @@ import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { TraceBadgeComponent } from '../../shared/trace-badge.component';
 import { CodeTextComponent } from '../../shared/code-text.component';
 
-/** V03 — Administración de red (B01–B04). */
+/**
+ * V03 — Administración de red (B01–B04), por rol (D-T4): el Asesor crea cadenas, sucursales y PDV;
+ * el Operador activa e inactiva; el Punto de Venta gestiona sus cajas y colocadores (RN-ACC-03/04);
+ * el Administrador crea los usuarios internos.
+ */
 @Component({
   selector: 'app-red',
   imports: [CodeTextComponent, TraceBadgeComponent, FormsModule, EmptyStateComponent],
@@ -18,7 +23,40 @@ export class RedComponent {
   private readonly store = inject(SimulatorStore);
   readonly state = this.store.state;
 
-  readonly profiles: ProfileName[] = ['Cajero', 'Supervisor', 'Administrador', 'Analista financiero'];
+  readonly role = this.store.role;
+  /** PDV del usuario Punto de Venta; null para el personal de IT2EX. */
+  readonly myPdv = computed(() => (this.role() === 'Punto de Venta' ? (this.store.currentUser()?.pdvId ?? null) : null));
+  readonly profiles = computed<ProfileName[]>(() => (this.role() ? creatableProfiles(this.role()!) : []));
+  /** La red (cadenas, sucursales y PDV) la ven el Asesor, el Operador y el Super Usuario. */
+  readonly seesNetwork = computed(() => ['Asesor de Ventas', 'Operador', 'Super Usuario'].includes(this.role() ?? ''));
+  readonly seesRegisters = computed(() => this.role() !== 'Administrador');
+
+  readonly registers = computed(() => {
+    const pdv = this.myPdv();
+    return this.state().registers.filter((r) => !pdv || r.pdvId === pdv);
+  });
+  readonly pdvs = computed(() => {
+    const pdv = this.myPdv();
+    return this.state().pdvs.filter((p) => !pdv || p.id === pdv);
+  });
+  readonly users = computed(() => {
+    const pdv = this.myPdv();
+    if (pdv) {
+      return this.state().users.filter((u) => u.pdvId === pdv);
+    }
+    if (this.role() === 'Administrador') {
+      return this.state().users.filter((u) => u.profile !== 'Colocador' && u.profile !== 'Punto de Venta');
+    }
+    return this.state().users;
+  });
+  readonly devicesList = computed(() => {
+    const ids = new Set(this.registers().map((r) => r.id));
+    return this.state().devices.filter((d) => ids.has(d.registerId));
+  });
+
+  can(action: AccessAction): boolean {
+    return this.store.can(action);
+  }
   readonly deviceTypes: DeviceType[] = ['Terminal web', 'Datáfono simulado', 'Impresora de tirilla simulada'];
 
   newChain = '';
@@ -30,7 +68,7 @@ export class RedComponent {
   newPdv = '';
   registerPdv = '';
   userName = '';
-  userProfile: ProfileName = 'Cajero';
+  userProfile: ProfileName | '' = '';
   userRegister = '';
   assignUser = '';
   assignRegister = '';
@@ -87,7 +125,8 @@ export class RedComponent {
 
   createUser(): void {
     const regs = this.userRegister ? [this.userRegister] : [];
-    if (this.exec((sim) => sim.createUser(this.userName, this.userProfile, regs))) {
+    const profile = this.userProfile || this.profiles()[0];
+    if (profile && this.exec((sim) => sim.createUser(this.userName, profile, regs))) {
       this.userName = '';
     }
   }

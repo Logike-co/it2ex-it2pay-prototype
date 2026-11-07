@@ -17,6 +17,8 @@ import { TraceBadgeComponent } from '../../shared/trace-badge.component';
 export class ConveniosComponent {
   private readonly store = inject(SimulatorStore);
   readonly state = this.store.state;
+  /** D-T4: solo el rol con «convenios.editar» opera; los demás consultan. */
+  readonly editable = computed(() => this.store.can('convenios.editar'));
   readonly categories = CATEGORIES;
   readonly subcategories = SUBCATEGORY_SUGGESTIONS;
   readonly lines = BUSINESS_LINES;

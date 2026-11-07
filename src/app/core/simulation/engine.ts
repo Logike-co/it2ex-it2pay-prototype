@@ -8,6 +8,7 @@ import {
   BusinessLine,
   CashClosing,
   CompensationMode,
+  ConciliationProposal,
   Consignment,
   Device,
   DeviceType,
@@ -19,6 +20,7 @@ import {
   ProfileName,
   ReverseKind,
   Result,
+  Review,
   RevalRecord,
   ScenarioState,
   Service,
@@ -181,7 +183,19 @@ export class Simulator {
   }
 
   private sessionUser(): string {
-    return this.state.session.userId ?? 'sistema';
+    return this.state.auth.userId ?? this.state.session.userId ?? 'sistema';
+  }
+
+  /** Usuario autenticado en el login; undefined sin login (pruebas del motor y procesos del sistema). */
+  private actor(): AppUser | undefined {
+    const id = this.state.auth.userId;
+    return id ? this.state.users.find((u) => u.id === id) : undefined;
+  }
+
+  /** Falla si hay un usuario autenticado y su rol no está entre los permitidos (defensa en profundidad). */
+  private denied(roles: ProfileName[], message: string): string | null {
+    const a = this.actor();
+    return a && !roles.includes(a.profile) ? message : null;
   }
 
   private tx(id: string): Transaction | undefined {
@@ -262,7 +276,50 @@ export class Simulator {
     return key ? this.state.obligations.find((o) => o.key === key) : undefined;
   }
 
-  // ================================================================ sesión (V01)
+  // ================================================================ login y sesión (V01)
+
+  /** La caja opera solo si su PDV, su sucursal y su cadena están activos. */
+  private networkActive(registerId: string): boolean {
+    const pdv = this.state.pdvs.find((p) => p.id === this.state.registers.find((r) => r.id === registerId)?.pdvId);
+    const branch = this.state.branches.find((b) => b.id === pdv?.branchId);
+    const chain = this.state.chains.find((c) => c.id === branch?.chainId);
+    return !!(pdv?.active && branch?.active && chain?.active);
+  }
+
+  /**
+   * Login simulado: la contraseña se llena sola y no se valida (exclusión §9 del alcance).
+   * Un Colocador con turno abierto en su caja retoma esa sesión de caja.
+   */
+  signIn(userId: string): Result<AppUser> {
+    const user = this.state.users.find((u) => u.id === userId && u.active);
+    if (!user) {
+      return fail('Seleccione un usuario activo');
+    }
+    this.state.auth = { userId: user.id };
+    this.logout();
+    if (user.profile === 'Colocador') {
+      const register = this.state.registers.find(
+        (r) => user.registerIds.includes(r.id) && r.currentShiftId && this.networkActive(r.id)
+      );
+      if (register) {
+        const pdvId = register.pdvId;
+        this.state.session = {
+          chainId: chainOfPdv(this.state, pdvId),
+          branchId: this.state.pdvs.find((p) => p.id === pdvId)?.branchId ?? null,
+          registerId: register.id,
+          userId: user.id,
+          shiftId: register.currentShiftId,
+        };
+      }
+    }
+    return ok(user, `Bienvenido, ${user.name} (${user.profile})`);
+  }
+
+  /** Cierra la sesión del usuario; el turno de la caja sigue abierto. */
+  signOut(): void {
+    this.state.auth = { userId: null };
+    this.logout();
+  }
 
   login(registerId: string, userId: string, baseCash = 100_000): Result<Shift> {
     const register = this.state.registers.find((r) => r.id === registerId);
@@ -273,8 +330,14 @@ export class Simulator {
     if (!user) {
       return fail('Seleccione un usuario activo');
     }
-    if (user.profile === 'Cajero' && !user.registerIds.includes(registerId)) {
+    if (user.profile !== 'Colocador') {
+      return fail('Solo un Colocador abre turno en una caja (RN-ACC-01)');
+    }
+    if (!user.registerIds.includes(registerId)) {
       return fail(`${user.name} no está asignado a ${registerId}`);
+    }
+    if (!this.networkActive(registerId)) {
+      return fail(`${registerId} no opera: su PDV, sucursal o cadena está inactiva`);
     }
     const pdvId = register.pdvId;
     const branchId = this.state.pdvs.find((p) => p.id === pdvId)?.branchId ?? null;
@@ -315,6 +378,10 @@ export class Simulator {
   // ================================================================ red (V03, B01–B04)
 
   createChain(name: string): Result<string> {
+    const denied = this.denied(['Asesor de Ventas'], 'Solo el Asesor de Ventas crea cadenas y razones sociales');
+    if (denied) {
+      return fail(denied);
+    }
     if (!name.trim()) {
       return fail('El nombre es obligatorio');
     }
@@ -331,6 +398,10 @@ export class Simulator {
   }
 
   updateChain(id: string, patch: { name?: string; active?: boolean }): Result<string> {
+    const denied = this.denied(['Asesor de Ventas', 'Operador'], 'Su perfil no modifica cadenas');
+    if (denied) {
+      return fail(denied);
+    }
     const chain = this.state.chains.find((c) => c.id === id);
     if (!chain) {
       return fail('Cadena no encontrada');
@@ -348,6 +419,10 @@ export class Simulator {
   }
 
   createBranch(chainId: string, name: string): Result<string> {
+    const denied = this.denied(['Asesor de Ventas'], 'Solo el Asesor de Ventas crea sucursales');
+    if (denied) {
+      return fail(denied);
+    }
     if (!this.state.chains.some((c) => c.id === chainId)) {
       return fail('Seleccione una cadena');
     }
@@ -366,6 +441,10 @@ export class Simulator {
     if (!name.trim()) {
       return fail('El nombre es obligatorio');
     }
+    const denied = this.denied(['Asesor de Ventas'], 'Solo el Asesor de Ventas crea puntos de venta');
+    if (denied) {
+      return fail(denied);
+    }
     const id = `PDV-${this.esc}${this.state.counters.PDV++}`;
     this.state.pdvs.push({
       id,
@@ -374,10 +453,25 @@ export class Simulator {
       activityType: this.state.id === 'SUP' ? 'Punto de servicios' : 'Taquilla',
       active: true,
     });
-    return ok(id, `PDV ${id} creado`);
+    // RN-ACC-03: el usuario Punto de Venta se crea con su PDV.
+    const n = this.state.users.filter((u) => u.profile === 'Punto de Venta').length + 1;
+    const userId = `PV-${this.esc}${pad(n, 2)}`;
+    this.state.users.push({
+      id: userId,
+      name: `PDV ${name.trim()}`,
+      profile: 'Punto de Venta',
+      registerIds: [],
+      active: true,
+      pdvId: id,
+    });
+    return ok(id, `PDV ${id} creado con su usuario Punto de Venta ${userId}`);
   }
 
   setActive(kind: 'branch' | 'pdv', id: string, active: boolean): Result<string> {
+    const denied = this.denied(['Operador'], 'Solo el Operador activa e inactiva puntos de venta');
+    if (denied) {
+      return fail(denied);
+    }
     const list = kind === 'branch' ? this.state.branches : this.state.pdvs;
     const item = list.find((x) => x.id === id);
     if (!item) {
@@ -388,8 +482,16 @@ export class Simulator {
   }
 
   createRegister(pdvId: string): Result<string> {
+    const denied = this.denied(['Punto de Venta'], 'Solo el Punto de Venta crea cajas en su PDV');
+    if (denied) {
+      return fail(denied);
+    }
     if (!this.state.pdvs.some((p) => p.id === pdvId)) {
       return fail('Seleccione un PDV');
+    }
+    const owner = this.actor();
+    if (owner?.pdvId && owner.pdvId !== pdvId) {
+      return fail('El Punto de Venta solo crea cajas en su PDV (RN-ACC-04)');
     }
     const suffix = pdvId.replace('PDV-', '');
     const n = this.state.registers.filter((r) => r.pdvId === pdvId).length + 1;
@@ -402,23 +504,41 @@ export class Simulator {
     if (!name.trim()) {
       return fail('El nombre es obligatorio');
     }
-    const prefix = { Cajero: 'CAJ', Supervisor: 'SUP', Administrador: 'ADM', 'Analista financiero': 'ANA' }[profile];
+    const actor = this.actor();
+    if (actor && !creatableProfiles(actor.profile).includes(profile)) {
+      return fail(`El perfil ${actor.profile} no crea usuarios ${profile}`);
+    }
+    if (profile === 'Punto de Venta') {
+      return fail('El usuario Punto de Venta se crea con su PDV');
+    }
+    let pdvId: string | null = null;
+    if (profile === 'Colocador') {
+      const pdvs = new Set(registerIds.map((r) => this.state.registers.find((x) => x.id === r)?.pdvId));
+      pdvId = [...pdvs][0] ?? actor?.pdvId ?? null;
+      if (actor?.profile === 'Punto de Venta' && (pdvs.size > 1 || pdvId !== actor.pdvId)) {
+        return fail('El Punto de Venta solo crea colocadores de su PDV (RN-ACC-04)');
+      }
+    }
     let id: string;
-    if (profile === 'Cajero') {
-      id = `CAJ-${this.esc}${pad(this.state.counters.CAJ++, 2)}`;
+    if (profile === 'Colocador') {
+      id = `COL-${this.esc}${pad(this.state.counters.CAJ++, 2)}`;
     } else {
       const n = this.state.users.filter((u) => u.profile === profile).length + 1;
-      id = `${prefix}-${this.esc}${pad(n, 2)}`;
+      id = `${PROFILE_PREFIX[profile]}-${this.esc}${pad(n, 2)}`;
     }
-    const user: AppUser = { id, name: name.trim(), profile, registerIds: [...registerIds], active: true };
+    const user: AppUser = { id, name: name.trim(), profile, registerIds: [...registerIds], active: true, pdvId };
     this.state.users.push(user);
     return ok(id, `Usuario ${id} creado`);
   }
 
   assignUser(userId: string, registerId: string): Result<string> {
+    const denied = this.denied(['Punto de Venta'], 'Solo el Punto de Venta asigna colocadores a sus cajas');
+    if (denied) {
+      return fail(denied);
+    }
     const user = this.state.users.find((u) => u.id === userId);
     if (!user || !this.state.registers.some((r) => r.id === registerId)) {
-      return fail('Seleccione un cajero y una caja');
+      return fail('Seleccione un colocador y una caja');
     }
     if (!user.registerIds.includes(registerId)) {
       user.registerIds.push(registerId);
@@ -431,6 +551,10 @@ export class Simulator {
   }
 
   createDevice(registerId: string, type: DeviceType, serial?: string): Result<string> {
+    const denied = this.denied(['Punto de Venta'], 'Solo el Punto de Venta registra dispositivos en sus cajas');
+    if (denied) {
+      return fail(denied);
+    }
     const register = this.state.registers.find((r) => r.id === registerId);
     if (!register) {
       return fail('Seleccione una caja');
@@ -465,6 +589,10 @@ export class Simulator {
     allowsLate: boolean;
     range: { min: number; max: number } | null;
   }): Result<string> {
+    const denied = this.denied(['Super Usuario'], 'Solo el Super Usuario parametriza convenios');
+    if (denied) {
+      return fail(denied);
+    }
     if (!input.name.trim() || !input.referenceName.trim()) {
       return fail('El nombre del servicio y el de la referencia son obligatorios');
     }
@@ -498,6 +626,10 @@ export class Simulator {
   }
 
   setServiceActive(id: string, active: boolean): Result<string> {
+    const denied = this.denied(['Super Usuario'], 'Solo el Super Usuario parametriza convenios');
+    if (denied) {
+      return fail(denied);
+    }
     const svc = this.service(id);
     if (!svc || svc.documentedOnly) {
       return fail('Servicio no editable');
@@ -508,6 +640,10 @@ export class Simulator {
 
   /** `enabled = null` elimina la regla (el PDV vuelve a heredar de la cadena). */
   setEnablement(serviceId: string, level: 'cadena' | 'pdv', targetId: string, enabled: boolean | null): Result<string> {
+    const denied = this.denied(['Super Usuario'], 'Solo el Super Usuario parametriza convenios');
+    if (denied) {
+      return fail(denied);
+    }
     const idx = this.state.enablements.findIndex(
       (e) => e.serviceId === serviceId && e.level === level && e.targetId === targetId
     );
@@ -526,6 +662,10 @@ export class Simulator {
   }
 
   setCommission(serviceId: string, chainId: string | null, chainValue: number, it2exValue: number): Result<string> {
+    const denied = this.denied(['Super Usuario'], 'Solo el Super Usuario parametriza convenios');
+    if (denied) {
+      return fail(denied);
+    }
     if (!(chainValue >= 0) || !(it2exValue >= 0)) {
       return fail('Las comisiones deben ser valores mayores o iguales a cero');
     }
@@ -543,6 +683,10 @@ export class Simulator {
   // ================================================================ cupos (V08, B08)
 
   setQuota(pdvId: string, line: BusinessLine, assigned: number): Result<string> {
+    const denied = this.denied(['Operador'], 'Solo el Operador ajusta los parámetros de venta');
+    if (denied) {
+      return fail(denied);
+    }
     if (!(assigned >= 0)) {
       return fail('El cupo asignado debe ser un valor mayor o igual a cero');
     }
@@ -606,6 +750,10 @@ export class Simulator {
 
   /** F12: valida, bloquea por cupo o crea la transacción y aplica el desenlace (§3, R-01..R-09). */
   authorize(input: AuthorizeInput): Result<Transaction> {
+    const denied = this.denied(['Colocador'], 'Solo el Colocador opera la caja (RN-ACC-01)');
+    if (denied) {
+      return fail(denied);
+    }
     const session = this.state.session;
     const register = this.state.registers.find((r) => r.id === session.registerId);
     if (!register || !session.userId) {
@@ -912,7 +1060,11 @@ export class Simulator {
   }
 
   /** Anulación (R-06, FM-07). */
-  voidTransaction(txId: string, reason: string, supervisorId: string | null): Result<Transaction> {
+  voidTransaction(txId: string, reason: string, pdvUserId: string | null): Result<Transaction> {
+    const denied = this.denied(['Colocador'], 'Solo el Colocador anula una transacción de su turno');
+    if (denied) {
+      return fail(denied);
+    }
     const tx = this.tx(txId);
     if (!tx) {
       return fail('Transacción no encontrada');
@@ -941,11 +1093,14 @@ export class Simulator {
     }
     let authorizedBy = this.sessionUser();
     if (tx.type === 'deposito') {
-      const supervisor = this.state.users.find((u) => u.id === supervisorId && u.profile === 'Supervisor');
-      if (!supervisor) {
-        return fail('La anulación de un depósito exige la confirmación de un usuario Supervisor');
+      // D-ACT-04: confirma el usuario Punto de Venta del PDV de la transacción.
+      const pdvUser = this.state.users.find(
+        (u) => u.id === pdvUserId && u.profile === 'Punto de Venta' && u.pdvId === tx.pdvId
+      );
+      if (!pdvUser) {
+        return fail('La anulación de un depósito exige la confirmación del usuario Punto de Venta del PDV');
       }
-      authorizedBy = supervisor.id;
+      authorizedBy = pdvUser.id;
     }
     this.moveTo(tx, 'VOIDED', 'Anulación', reason.trim());
     tx.voidInfo = { at: this.nowIso(), reason: reason.trim(), authorizedBy };
@@ -970,6 +1125,11 @@ export class Simulator {
     if (original.type === 'reverso') {
       return fail(MESSAGES.reverseNoVoid);
     }
+    // RN-ACC-05: solo el Operador reversa; el técnico lo ejecuta la aprobación de la conciliación.
+    const denied = kind === 'funcional' ? this.denied(['Operador'], 'Solo el Operador reversa una transacción') : null;
+    if (denied) {
+      return fail(denied);
+    }
     if (kind === 'funcional' && original.type === 'retiro') {
       return fail('Los retiros no se reversan en esta simulación (ilustrativo)');
     }
@@ -987,7 +1147,7 @@ export class Simulator {
       return fail('El motivo es obligatorio');
     }
     const { id } = this.nextTxId();
-    const operator = this.state.session.userId ?? original.operatorId;
+    const operator = this.state.auth.userId ?? this.state.session.userId ?? original.operatorId;
     const rev: Transaction = {
       ...original,
       id,
@@ -1090,6 +1250,10 @@ export class Simulator {
   // ================================================================ cierre (V09, R-10)
 
   closeShift(registerId: string, declaredCash: number, observation: string): Result<CashClosing> {
+    const denied = this.denied(['Colocador'], 'Solo el Colocador cierra su turno');
+    if (denied) {
+      return fail(denied);
+    }
     const register = this.state.registers.find((r) => r.id === registerId);
     const shift = this.state.shifts.find((s) => s.id === register?.currentShiftId && s.status === 'abierto');
     if (!register || !shift) {
@@ -1130,6 +1294,10 @@ export class Simulator {
   // ================================================================ conciliación (V10, R-11)
 
   runConciliation(): Result<string> {
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas ejecuta la conciliación');
+    if (denied) {
+      return fail(denied);
+    }
     this.state.lastConciliationAt = this.nowIso();
     const c = conciliation(this.state);
     return ok(
@@ -1154,6 +1322,10 @@ export class Simulator {
 
   /** C05 «Consultar estado» sobre una diferencia de estado o «Solo en IT2Pay» en verificación. */
   resolveByConsult(txId: string): Result<ConsultResult> {
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas gestiona las discrepancias');
+    if (denied) {
+      return fail(denied);
+    }
     const row = this.exceptionRow(txId);
     if (!row || !row.tx) {
       return fail('No hay una excepción abierta para esa transacción');
@@ -1174,6 +1346,10 @@ export class Simulator {
 
   /** C05 «Reverso técnico» sobre una «Inconsistencia reportada por Reval (simulado)». */
   resolveByTechnicalReverse(txId: string): Result<Transaction> {
+    const denied = this.denied(['Aprobador financiero'], 'El reverso técnico lo aprueba el Aprobador financiero');
+    if (denied) {
+      return fail(denied);
+    }
     const row = this.exceptionRow(txId);
     if (!row || row.classification !== 'Inconsistencia reportada por Reval (simulado)') {
       return fail('El reverso técnico aplica solo a una inconsistencia reportada por Reval (simulado)');
@@ -1183,6 +1359,10 @@ export class Simulator {
 
   /** C05 «Registrar ajuste» (nota obligatoria): no modifica la transacción. */
   registerAdjustment(txId: string, note: string): Result<string> {
+    const denied = this.denied(['Aprobador financiero'], 'El ajuste lo aprueba el Aprobador financiero');
+    if (denied) {
+      return fail(denied);
+    }
     const row = this.exceptionRow(txId);
     if (!row) {
       return fail('No hay una excepción abierta para esa transacción');
@@ -1194,9 +1374,83 @@ export class Simulator {
     return ok(txId, `${txId}: resuelta con ajuste (ilustrativo)`);
   }
 
+  /** UC-17: Finanzas propone resolver una excepción con reverso técnico o ajuste; queda pendiente de aprobación. */
+  propose(txId: string, kind: ConciliationProposal['kind'], note: string | null = null): Result<ConciliationProposal> {
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas propone ajustes de conciliación');
+    if (denied) {
+      return fail(denied);
+    }
+    const row = this.exceptionRow(txId);
+    if (!row) {
+      return fail('No hay una excepción abierta para esa transacción');
+    }
+    if (kind === 'reverso técnico' && row.classification !== 'Inconsistencia reportada por Reval (simulado)') {
+      return fail('El reverso técnico aplica solo a una inconsistencia reportada por Reval (simulado)');
+    }
+    if (kind === 'ajuste' && !note?.trim()) {
+      return fail('La nota es obligatoria en los ajustes');
+    }
+    if (this.state.proposals.some((p) => p.txId === txId && p.status === 'Pendiente de aprobación')) {
+      return fail(`${txId} ya tiene una propuesta pendiente de aprobación`);
+    }
+    const proposal: ConciliationProposal = {
+      id: `PRO-${this.esc}-${pad(this.state.counters.PRO++, 3)}`,
+      txId,
+      kind,
+      note: note?.trim() || null,
+      at: this.nowIso(),
+      status: 'Pendiente de aprobación',
+      review: this.newReview(),
+    };
+    this.state.proposals.push(proposal);
+    return ok(proposal, `${proposal.id}: ${kind} de ${txId} pendiente de aprobación`);
+  }
+
+  /**
+   * UC-18, UC-20 y UC-22: el Aprobador financiero aprueba o rechaza lo que generó Finanzas.
+   * Nadie aprueba lo que generó (RN-ACC-06).
+   */
+  review(kind: 'propuesta' | 'liquidacion' | 'cuenta', id: string, approve: boolean): Result<string> {
+    const item =
+      kind === 'propuesta'
+        ? this.state.proposals.find((p) => p.id === id)
+        : kind === 'liquidacion'
+          ? this.state.liquidations.find((l) => l.id === id)
+          : this.state.collectionAccounts.find((c) => c.id === id);
+    if (!item || item.status !== 'Pendiente de aprobación') {
+      return fail('Solo se revisa lo que está pendiente de aprobación');
+    }
+    const actor = this.actor();
+    if (!actor || actor.profile !== 'Aprobador financiero') {
+      return fail('Solo el Aprobador financiero aprueba (RN-ACC-06)');
+    }
+    if (item.review.createdBy === actor.id) {
+      return fail('Nadie aprueba lo que generó (RN-ACC-06)');
+    }
+    if (approve && kind === 'propuesta') {
+      const p = item as ConciliationProposal;
+      const done: Result<unknown> =
+        p.kind === 'reverso técnico' ? this.resolveByTechnicalReverse(p.txId) : this.registerAdjustment(p.txId, p.note ?? '');
+      if (!done.ok) {
+        return fail(done.error);
+      }
+    }
+    item.status = approve ? 'Aprobada' : 'Rechazada';
+    item.review = { ...item.review, reviewedBy: actor.id, reviewedAt: this.nowIso() };
+    return ok(id, `${id} ${approve ? 'aprobada' : 'rechazada'} por ${actor.name}`);
+  }
+
+  private newReview(): Review {
+    return { createdBy: this.sessionUser(), reviewedBy: null, reviewedAt: null };
+  }
+
   // ================================================================ consignaciones (V11, R-12)
 
   reportConsignment(pdvId: string, line: BusinessLine, value: number): Result<Consignment> {
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas registra consignaciones');
+    if (denied) {
+      return fail(denied);
+    }
     const q = quotaStatus(this.state, pdvId, line);
     if (!q.defined) {
       return fail(`PDV sin cupo asignado para ${line}`);
@@ -1226,6 +1480,10 @@ export class Simulator {
   }
 
   validateConsignment(id: string): Result<Consignment> {
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas valida consignaciones');
+    if (denied) {
+      return fail(denied);
+    }
     const c = this.state.consignments.find((x) => x.id === id);
     if (!c || c.status !== 'Reportada') {
       return fail('Solo se valida una consignación reportada');
@@ -1236,6 +1494,10 @@ export class Simulator {
   }
 
   rejectConsignment(id: string): Result<Consignment> {
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas rechaza consignaciones');
+    if (denied) {
+      return fail(denied);
+    }
     const c = this.state.consignments.find((x) => x.id === id);
     if (!c || c.status !== 'Reportada') {
       return fail('Solo se rechaza una consignación reportada');
@@ -1248,6 +1510,10 @@ export class Simulator {
   // ================================================================ finanzas (V12, R-15, R-16)
 
   liquidate(): Result<Liquidation> {
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas liquida comisiones');
+    if (denied) {
+      return fail(denied);
+    }
     const rows = liveLiquidationRows(this.state).map((r) => ({ ...r }));
     const liq: Liquidation = {
       id: `LIQ-${this.esc}-${pad(this.state.counters.LIQ++, 3)}`,
@@ -1255,16 +1521,24 @@ export class Simulator {
       at: this.nowIso(),
       rows,
       totals: liquidationTotals(rows),
-      status: 'Liquidada (ilustrativa)',
+      status: 'Pendiente de aprobación',
+      review: this.newReview(),
     };
     this.state.liquidations.push(liq);
-    return ok(liq, `${liq.id} liquidada (ilustrativa)`);
+    return ok(liq, `${liq.id} liquidada (ilustrativa): pendiente de aprobación`);
   }
 
   generateCollectionAccount(liquidationId: string): Result<string> {
     const liq = this.state.liquidations.find((l) => l.id === liquidationId);
     if (!liq) {
       return fail('Primero liquide el periodo demo');
+    }
+    const denied = this.denied(['Finanzas'], 'Solo Finanzas genera la cuenta de cobro');
+    if (denied) {
+      return fail(denied);
+    }
+    if (liq.status !== 'Aprobada') {
+      return fail(`La cuenta de cobro se genera desde una liquidación aprobada (${liq.id}: ${liq.status})`);
     }
     const existing = this.state.collectionAccounts.find((c) => c.liquidationId === liq.id);
     if (existing) {
@@ -1286,8 +1560,10 @@ export class Simulator {
         },
       ],
       total: liq.totals.it2ex,
+      status: 'Pendiente de aprobación',
+      review: this.newReview(),
     });
-    return ok(id, `Cuenta de cobro ${id} generada`);
+    return ok(id, `Cuenta de cobro ${id} generada: pendiente de aprobación`);
   }
 
   // ================================================================ presentador
@@ -1307,6 +1583,29 @@ type ExceptionTypeArg =
   | 'Solo en IT2Pay'
   | 'Solo en Reval (simulado)'
   | 'Inconsistencia reportada por Reval (simulado)';
+
+/** Prefijo del id de usuario por rol. */
+export const PROFILE_PREFIX: Record<ProfileName, string> = {
+  Colocador: 'COL',
+  'Punto de Venta': 'PV',
+  'Asesor de Ventas': 'ASE',
+  Operador: 'OPE',
+  Finanzas: 'FIN',
+  'Aprobador financiero': 'APR',
+  Administrador: 'ADM',
+  'Super Usuario': 'SU',
+};
+
+/**
+ * Perfiles que cada rol puede crear: el Punto de Venta crea a sus colocadores (RN-ACC-03) y
+ * el Administrador a los usuarios internos (todos menos Colocador y Punto de Venta).
+ */
+export const creatableProfiles = (creator: ProfileName): ProfileName[] =>
+  creator === 'Punto de Venta'
+    ? ['Colocador']
+    : creator === 'Administrador'
+      ? ['Asesor de Ventas', 'Operador', 'Finanzas', 'Aprobador financiero', 'Administrador', 'Super Usuario']
+      : [];
 
 export const closingBlockMessage = (ids: string[]): string =>
   ids.length === 1

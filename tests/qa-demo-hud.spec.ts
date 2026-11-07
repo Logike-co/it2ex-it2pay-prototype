@@ -1,15 +1,15 @@
 import { expect, Page, test } from '@playwright/test';
 import { enGuia } from './guia';
+import { ingresarComo, irA, limpio } from './sesion';
 
 /**
  * Modo presentador (workflow T §1.4, X01–X04): guía de demo, atajos, presets ESC-01..03,
- * reinicio en 1 clic y trazabilidad US/RF en pantalla.
+ * reinicio en 1 clic y trazabilidad US/RF en pantalla. Cada paso del guion se hace con su
+ * perfil (D-T4): la guía ofrece «Ingresar como…».
  */
 
 const fresh = async (page: Page) => {
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await limpio(page);
 };
 
 const applyPreset = async (page: Page, id: string) => {
@@ -28,14 +28,12 @@ const goToStep = async (page: Page, n: number) => {
   await step.click();
 };
 
-const login = async (page: Page, chain: string, branch: string, register: string, user: string) => {
-  await page.getByTestId('nav-V01').click();
-  await page.getByTestId('sel-cadena').selectOption(chain);
-  await page.getByTestId('sel-sucursal').selectOption(branch);
-  await page.getByTestId('sel-caja').selectOption(register);
-  await page.getByTestId('sel-usuario').selectOption(user);
-  await page.getByTestId('btn-ingresar').click();
-  await expect(page).toHaveURL(/\/caja$/);
+/** «Ingresar como…» del paso en curso; verifica la sesión del usuario esperado. */
+const ingresarDelPaso = async (page: Page, user: string) => {
+  await expect(page.getByTestId('guia-usuario-paso')).toContainText(user);
+  await page.getByTestId('guia-ingresar-como').click();
+  await expect(page.getByTestId('usuario-sesion')).toContainText(user);
+  await expect(page.getByTestId('guia-ingresar-como')).toHaveCount(0);
 };
 
 test.beforeEach(async ({ page }) => {
@@ -59,43 +57,56 @@ test('X01: la guía se abre y se cierra con el botón y con Ctrl+Shift+D', async
 test('X01: la guía recorre los pasos y navega a la vista de cada uno', async ({ page }) => {
   await applyPreset(page, 'ESC-01');
   await expect(page).toHaveURL(/\/inicio$/);
-  await expect(page.getByTestId('guia-paso-num')).toContainText('ESC-01 · Paso 1 de 8 · V01');
+  await expect(page.getByTestId('usuario-sesion')).toContainText('ASE-S01');
+  await expect(page.getByTestId('guia-paso-num')).toContainText('ESC-01 · Paso 1 de 14 · V01');
   await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Elegir escenario');
   await expect(page.getByTestId('guia-anterior')).toBeDisabled();
 
   await page.getByTestId('guia-siguiente').click();
   await expect(page).toHaveURL(/\/red$/);
-  await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Configurar la red');
+  await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Crear el punto de venta');
+  await expect(page.getByTestId('guia-ingresar-como')).toHaveCount(0);
 
-  await goToStep(page, 8);
+  // El paso 3 es del Punto de Venta PV-S04, que aún no existe: se crea en el paso 2.
+  await page.getByTestId('guia-siguiente').click();
+  await expect(page.getByTestId('guia-usuario-paso')).toContainText('se crea en un paso anterior');
+  await expect(page.getByTestId('guia-ingresar-como')).toHaveCount(0);
+
+  await goToStep(page, 14);
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByTestId('guia-siguiente')).toBeDisabled();
+  await expect(page.getByTestId('guia-usuario-paso')).toContainText('OPE-S01');
+  await expect(page.getByTestId('guia-ingresar-como')).toBeVisible();
 
-  // La guía sigue a la pantalla: al ir a V04 por el menú pasa al paso que la usa.
-  await page.getByTestId('nav-V04').click();
-  await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Configurar la red');
+  // La guía sigue a la pantalla: al ir a V08 por el menú pasa al paso que la usa.
+  await irA(page, 'cupos');
+  await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Cupos');
   await expect(page.getByTestId('guia-fuera-de-vista')).toBeHidden();
-  await page.getByTestId('nav-V09').click();
-  await expect(page.getByTestId('guia-paso-num')).toContainText('Paso 6 de 8');
+  await irA(page, 'red');
+  await expect(page.getByTestId('guia-paso-num')).toContainText('Paso 3 de 14');
 
+  // «Saltar a vista» solo ofrece las vistas del perfil.
+  await expect(page.getByTestId('guia-saltar-vista').locator('option[value="convenios"]')).toHaveCount(0);
   await page.getByTestId('guia-saltar-vista').selectOption('cupos');
   await expect(page).toHaveURL(/\/cupos$/);
 });
 
 test('X01: en una pantalla fuera del guion, la guía conserva el paso, lo advierte y ofrece volver', async ({ page }) => {
   await applyPreset(page, 'ESC-02');
-  await page.getByTestId('nav-V04').click();
+  await expect(page).toHaveURL(/\/caja$/);
+  await irA(page, 'cierre');
   await expect(page.getByTestId('guia-paso-titulo')).toHaveText('Ingresar a la caja del aeropuerto');
-  await expect(page.getByTestId('guia-fuera-de-vista')).toContainText('V04 no forma parte del guion de ESC-02');
+  await expect(page.getByTestId('guia-fuera-de-vista')).toContainText('V09 no forma parte del guion de ESC-02');
   await page.getByTestId('guia-ir-vista').click();
-  await expect(page).toHaveURL(/\/inicio$/);
+  await expect(page).toHaveURL(/\/caja$/);
   await expect(page.getByTestId('guia-fuera-de-vista')).toBeHidden();
 });
 
 test('X01: la caja y su resultado no mueven la guía del paso en curso', async ({ page }) => {
   await applyPreset(page, 'ESC-03');
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
-  // Ingresar lleva a la caja, que sigue siendo parte del paso 1.
+  // El preset entra como Colocador Demo 01, que retoma su turno: la caja es parte del paso 1.
+  await expect(page).toHaveURL(/\/caja$/);
+  await expect(page.getByTestId('usuario-sesion')).toContainText('COL-S01');
   await expect(page.getByTestId('guia-paso-num')).toContainText('Paso 1 de 4');
   await expect(page.getByTestId('guia-fuera-de-vista')).toBeHidden();
   await page.getByTestId('guia-siguiente').click();
@@ -112,7 +123,7 @@ test('X01: la caja y su resultado no mueven la guía del paso en curso', async (
 });
 
 test('X02: Ctrl+Shift+R reinicia el escenario en 1 clic, sin diálogo y sin recargar la página', async ({ page }) => {
-  await page.getByTestId('nav-V03').click();
+  await ingresarComo(page, 'ASE-S01', 'red');
   await page.evaluate(() => ((window as unknown as { __sinRecarga: boolean }).__sinRecarga = true));
   await page.getByTestId('sucursal-cadena').selectOption('CAD-S1');
   await page.getByTestId('nueva-sucursal').fill('Sucursal Demo Nueva');
@@ -128,30 +139,43 @@ test('X02: Ctrl+Shift+R reinicia el escenario en 1 clic, sin diálogo y sin reca
   // La página no se recargó: la marca puesta en window sigue ahí.
   expect(await page.evaluate(() => (window as unknown as { __sinRecarga?: boolean }).__sinRecarga)).toBe(true);
 
-  await page.getByTestId('nav-V03').click();
+  // El reinicio entra con el usuario del primer paso del preset (ASE-S01).
+  await expect(page.getByTestId('usuario-sesion')).toContainText('ASE-S01');
+  await irA(page, 'red');
   await expect(page.getByText('SUC-S4')).toHaveCount(0);
 });
 
-test('ESC-02: Parqueaderos reiniciado; la inconsistencia de Reval (simulado) se resuelve con reverso técnico', async ({ page }) => {
+test('ESC-02: Parqueaderos reiniciado; Finanzas propone el reverso técnico y el Aprobador lo aprueba', async ({ page }) => {
   await applyPreset(page, 'ESC-02');
-  await expect((await enGuia(page, 'selector-escenario'))).toHaveValue('PAR');
-  await page.getByTestId('nav-V02').click();
+  await expect(await enGuia(page, 'selector-escenario')).toHaveValue('PAR');
+  await expect(page.getByTestId('usuario-sesion')).toContainText('COL-P01');
+  await expect(page).toHaveURL(/\/caja$/);
+  await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 445.000');
+
+  // Punto de partida de la red, con el Operador.
+  await ingresarComo(page, 'OPE-P01', 'dashboard');
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 485.000');
   await expect(page.getByTestId('kpi-tasa')).toHaveText('85,7 %');
 
-  await login(page, 'CAD-P1', 'SUC-P1', 'CJ-P1-01', 'CAJ-P01');
-  await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 445.000');
-
   await goToStep(page, 2);
+  await ingresarDelPaso(page, 'FIN-P01');
   await expect(page).toHaveURL(/\/conciliacion$/);
   await page.getByTestId('btn-conciliar').click();
   await expect(page.getByText('Inconsistencia reportada por Reval (simulado)').first()).toBeVisible();
   await page.getByTestId('reverso-tecnico-TX-P-0005').click();
+  await expect(page.getByTestId('pendiente-TX-P-0005')).toContainText('PRO-P-001');
+  await expect(page.getByTestId('aprobar-PRO-P-001')).toHaveCount(0);
+
+  await goToStep(page, 3);
+  await ingresarDelPaso(page, 'APR-P01');
+  await page.getByTestId('aprobar-PRO-P-001').click();
   await expect(page.getByTestId('resuelta-TX-P-0005')).toContainText('resuelta por reverso técnico');
   await expect(page.getByTestId('conc-comparados')).toHaveText('8');
   await expect(page.getByTestId('conc-conciliados')).toHaveText('8');
 
   await goToStep(page, 4);
+  await ingresarDelPaso(page, 'OPE-P01');
+  await expect(page).toHaveURL(/\/transacciones$/);
   await page.getByTestId('fila-TX-P-0005').click();
   await expect(page.getByTestId('detalle-transaccion')).toContainText('Reversada');
 });
@@ -161,7 +185,7 @@ test('ESC-03: la próxima autorización se rechaza; no suma al recaudo y queda t
   await (await enGuia(page, 'btn-presentador')).click();
   await expect(page.getByTestId('panel-autorizacion')).toHaveValue('rechazar');
 
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
+  await expect(page.getByTestId('usuario-sesion')).toContainText('COL-S01');
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 730.200');
   await page.keyboard.press('F1');
   await page.getByTestId('servicio-SRV-01').click();
@@ -174,16 +198,25 @@ test('ESC-03: la próxima autorización se rechaza; no suma al recaudo y queda t
   await expect(page.getByTestId('resultado-estado')).toHaveText('Rechazada');
   await expect(page.getByTestId('resultado-codigo')).toHaveText('R-13');
 
-  await page.getByTestId('nav-V02').click();
+  // Paso 3: el Colocador ve el rechazo en sus movimientos.
+  await goToStep(page, 3);
+  await expect(page).toHaveURL(/\/transacciones$/);
+  await expect(page.getByTestId('fila-TX-S-0011')).toBeVisible();
+
+  // Paso 4: indicadores, con el Operador.
+  await goToStep(page, 4);
+  await ingresarDelPaso(page, 'OPE-S01');
+  await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 612.700');
   await expect(page.getByTestId('cnt-rechazadas')).toHaveText('2');
 });
 
 test('X04: la trazabilidad muestra US y RF en cada vista, marca «solo demo» y no se imprime', async ({ page }) => {
+  await ingresarComo(page, 'COL-S01');
   await expect(page.getByTestId('trazabilidad-vista')).toHaveCount(0);
   await (await enGuia(page, 'btn-trazabilidad')).check();
 
-  await page.getByTestId('nav-V05').click();
+  await irA(page, 'caja');
   const strip = page.getByTestId('trazabilidad-vista');
   await expect(strip).toHaveAttribute('data-view', 'V05');
   await expect(strip).toContainText('US-09 · RF-09');
@@ -191,10 +224,10 @@ test('X04: la trazabilidad muestra US y RF en cada vista, marca «solo demo» y 
   await page.getByTestId('trazabilidad-detalle').click();
   await expect(strip).toContainText('E18');
 
-  await page.getByTestId('nav-V09').click();
+  await irA(page, 'cierre');
   await expect(page.getByTestId('trazabilidad-vista')).toContainText('Solo demo');
 
-  await page.getByTestId('nav-V04').click();
+  await ingresarComo(page, 'SU-S01', 'convenios');
   await expect(page.locator('[data-testid="badge-trazabilidad"][data-items="B07"]')).toContainText('US-15 · RF-15');
 
   await page.emulateMedia({ media: 'print' });
@@ -207,8 +240,9 @@ test('X04: la trazabilidad muestra US y RF en cada vista, marca «solo demo» y 
 });
 
 test('D-02: Enter en un control de la guía no autoriza la operación de la caja', async ({ page }) => {
+  await ingresarComo(page, 'COL-S01');
+  await expect(page).toHaveURL(/\/caja$/);
   await page.getByTestId('btn-guia-demo').click();
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
   await page.keyboard.press('F1');
   await page.getByTestId('servicio-SRV-01').click();
   await page.getByTestId('ref-0').fill('4500112100');
@@ -232,8 +266,8 @@ test('D-02: Enter en un control de la guía no autoriza la operación de la caja
 
 test('D-01: a 1280 px con la guía abierta, los controles del paso 7 no quedan tapados', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
+  await ingresarComo(page, 'FIN-S01', 'compensacion');
   await page.getByTestId('btn-guia-demo').click();
-  await page.getByTestId('nav-V11').click();
   await page.getByTestId('con-pdv').selectOption('PDV-S1');
   await page.getByTestId('con-linea').selectOption('Recaudos');
   await page.getByTestId('con-valor').fill('1000');

@@ -7,11 +7,11 @@
   </h2>
   <div class="mb-3 flex flex-wrap gap-3 text-sm" role="radiogroup" aria-label="Modalidad de compensación">
     <label class="flex items-center gap-1">
-      <input type="radio" name="modalidad" data-testid="modalidad-separado" [checked]="c.mode === 'separado'" (change)="setMode('separado')" />
+      <input type="radio" name="modalidad" data-testid="modalidad-separado" [disabled]="!canOperate()" [checked]="c.mode === 'separado'" (change)="setMode('separado')" />
       Comisiones facturadas por separado
     </label>
     <label class="flex items-center gap-1">
-      <input type="radio" name="modalidad" data-testid="modalidad-descontado" [checked]="c.mode === 'descontado'" (change)="setMode('descontado')" />
+      <input type="radio" name="modalidad" data-testid="modalidad-descontado" [disabled]="!canOperate()" [checked]="c.mode === 'descontado'" (change)="setMode('descontado')" />
       Comisiones descontadas del recaudo
     </label>
   </div>
@@ -73,6 +73,7 @@ obligación Reval (simulado) = ingresos − retiros (por cadena y total)
 
   <section class="card" data-testid="consignaciones">
     <h2 class="card-title">Consignaciones ficticias (C06) <app-legend /> <app-trace-badge [items]="['C06']" /></h2>
+    @if (canOperate()) {
     <div class="mb-3 grid gap-2 @3xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
       <select class="input" data-testid="con-pdv" [(ngModel)]="conPdv">
         <option value="">— PDV —</option>
@@ -88,6 +89,7 @@ obligación Reval (simulado) = ingresos − retiros (por cadena y total)
       <input class="input" type="number" placeholder="Valor" data-testid="con-valor" [(ngModel)]="conValue" />
       <button type="button" class="btn btn-primary" data-testid="btn-consignar" (click)="report()">Registrar consignación</button>
     </div>
+    }
     @if (consignments().length) {
       <div class="overflow-x-auto">
       <table class="table">
@@ -98,7 +100,7 @@ obligación Reval (simulado) = ingresos − retiros (por cadena y total)
               <td><span class="whitespace-nowrap">{{ k.id }}</span></td><td><span class="whitespace-nowrap">{{ k.pdvId }}</span> · {{ k.line }}</td><td class="num">{{ k.value | money }}</td><td class="text-xs">{{ k.bank }} · <span class="whitespace-nowrap">{{ k.support }}</span></td>
               <td data-testid="consignacion-estado">{{ k.status }}</td>
               <td class="whitespace-nowrap">
-                @if (k.status === 'Reportada') {
+                @if (k.status === 'Reportada' && canOperate()) {
                   <button type="button" class="btn" [attr.data-testid]="'validar-' + k.id" (click)="validate(k.id)">Validar (banco simulado)</button>
                   <button type="button" class="btn" [attr.data-testid]="'rechazar-' + k.id" (click)="reject(k.id)">Rechazar</button>
                 }

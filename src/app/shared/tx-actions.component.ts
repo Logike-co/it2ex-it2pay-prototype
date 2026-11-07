@@ -24,9 +24,9 @@ export class TxActionsComponent {
   readonly message = signal<{ kind: Tone; text: string } | null>(null);
   readonly mode = signal<'none' | 'void' | 'reverse'>('none');
   reason = '';
-  supervisorId = '';
+  pdvUserId = '';
 
-  readonly reasons = ['Error del cajero', 'Solicitud del cliente', 'Número errado', 'Otro'];
+  readonly reasons = ['Error del colocador', 'Solicitud del cliente', 'Número errado', 'Otro'];
 
   readonly tx = computed(() => this.store.state().transactions.find((t) => t.id === this.txId()) ?? null);
   readonly live = computed(() => {
@@ -42,9 +42,13 @@ export class TxActionsComponent {
     const shift = this.store.state().shifts.find((s) => s.id === t.shiftId);
     return !shift || shift.status !== 'abierto';
   });
-  readonly supervisors = computed(() =>
-    this.store.state().users.filter((u) => u.profile === 'Supervisor' && u.active)
+  /** D-ACT-04: confirma la anulación de un depósito el usuario Punto de Venta del PDV de la transacción. */
+  readonly pdvUsers = computed(() =>
+    this.store.state().users.filter((u) => u.profile === 'Punto de Venta' && u.active && u.pdvId === this.tx()?.pdvId)
   );
+  /** RN-ACC-05: solo el Operador reversa; el Colocador anula en su turno. */
+  readonly canVoid = computed(() => this.store.can('tx.anular'));
+  readonly canReverse = computed(() => this.store.can('tx.reversar'));
   readonly idempotency = computed(() => this.store.state().presenter.idempotency);
 
   private show(result: { ok: boolean; error?: string; message?: string }, fallback: string): void {
@@ -87,7 +91,7 @@ export class TxActionsComponent {
       return;
     }
     this.reason = this.reasons[0];
-    this.supervisorId = '';
+    this.pdvUserId = '';
     this.message.set(null);
     this.mode.set('void');
   }
@@ -99,7 +103,7 @@ export class TxActionsComponent {
   }
 
   confirmVoid(): void {
-    const r = this.store.run((sim) => sim.voidTransaction(this.txId(), this.reason, this.supervisorId || null));
+    const r = this.store.run((sim) => sim.voidTransaction(this.txId(), this.reason, this.pdvUserId || null));
     this.show(r, 'Anulada');
     if (r.ok) {
       this.mode.set('none');

@@ -93,37 +93,41 @@ describe('La guía sigue a la pantalla', () => {
   const esc02 = presetById('ESC-02').steps;
 
   it('cada paso recorre su vista de arranque, las de sus ítems y el resultado si pasa por la caja', () => {
-    expect(stepViews(esc01[1]).sort()).toEqual(['V03', 'V04', 'V08']);
-    expect(stepViews(esc01[2]).sort()).toEqual(['V01', 'V05', 'V06']);
-    expect(stepViews(esc01[3]).sort()).toEqual(['V05', 'V06']);
-    expect(stepViews(esc01[6]).sort()).toEqual(['V10', 'V11', 'V12']);
-    // Ingresar con un cajero lleva a la caja: es parte del paso de ingreso.
+    expect(stepViews(esc01[1]).sort()).toEqual(['V03']);
+    expect(stepViews(esc01[5]).sort()).toEqual(['V01', 'V05', 'V06']);
+    expect(stepViews(esc01[6]).sort()).toEqual(['V05', 'V06']);
+    expect(stepViews(esc01[9]).sort()).toEqual(['V10', 'V11', 'V12']);
+    // Ingresar como Colocador lleva a la caja: es parte del paso de ingreso.
     expect(stepViews(esc02[0])).toContain('V05');
   });
 
   it('pasa al siguiente paso que usa la pantalla y, si ninguno adelante la usa, al anterior más cercano', () => {
-    expect(stepForView(esc01, 0, 'V04')).toBe(1);
-    expect(stepForView(esc01, 1, 'V01')).toBe(2);
-    expect(stepForView(esc01, 3, 'V06')).toBe(3);
-    expect(stepForView(esc01, 7, 'V03')).toBe(1);
+    expect(stepForView(esc01, 0, 'V04')).toBe(3);
+    expect(stepForView(esc01, 1, 'V01')).toBe(5);
+    expect(stepForView(esc01, 6, 'V06')).toBe(6);
+    expect(stepForView(esc01, 13, 'V03')).toBe(2);
     expect(stepForView(esc02, 1, 'V04')).toBe(-1);
   });
 
   it('al navegar por el menú, el paso de la guía cambia al de la pantalla', async () => {
     const { demo } = setup();
     const router = TestBed.inject(Router);
+    const sim = TestBed.inject(SimulatorStore);
     demo.applyPreset('ESC-01');
+    sim.run((s) => s.signIn('SU-S01'));
     await router.navigateByUrl('/convenios');
-    expect(demo.step().n).toBe(2);
+    expect(demo.step().n).toBe(4);
     expect(demo.viewInStep()).toBe(true);
+    sim.run((s) => s.signIn('COL-S01'));
     await router.navigateByUrl('/cierre');
-    expect(demo.step().n).toBe(6);
+    expect(demo.step().n).toBe(9);
   });
 
   it('en una pantalla fuera del guion conserva el paso y lo advierte', async () => {
     const { demo } = setup();
     const router = TestBed.inject(Router);
     demo.applyPreset('ESC-02');
+    TestBed.inject(SimulatorStore).run((s) => s.signIn('OPE-P01'));
     await router.navigateByUrl('/convenios');
     expect(demo.step().n).toBe(1);
     expect(demo.viewInStep()).toBe(false);
@@ -149,7 +153,24 @@ describe('DemoModeStore (presets y reinicio en 1 clic, X02)', () => {
     demo.applyPreset('ESC-02');
     expect(sim.activeScenario()).toBe('PAR');
     expect(sim.state().presenter.nextAuthorization).toBe('gatillo');
-    expect(demo.step().view).toBe('V01');
+    expect(demo.step().view).toBe('V05');
+    expect(sim.currentUser()?.id).toBe('COL-P01');
+  });
+
+  it('cada paso tiene su usuario y «Ingresar como…» cambia de sesión (D-T4)', () => {
+    const { demo, sim } = setup();
+    demo.applyPreset('ESC-01');
+    expect(sim.currentUser()?.id).toBe('ASE-S01');
+    expect(demo.needsSwitch()).toBe(false);
+    demo.goTo(4);
+    expect(demo.step().user).toBe('OPE-S01');
+    expect(demo.needsSwitch()).toBe(true);
+    demo.signInAs('OPE-S01');
+    expect(sim.currentUser()?.profile).toBe('Operador');
+    expect(demo.needsSwitch()).toBe(false);
+    // El usuario del paso 3 (PV-S04) aún no existe: se crea en el paso 2.
+    demo.goTo(2);
+    expect(demo.stepUser()).toBeNull();
   });
 
   it('el reinicio en 1 clic restaura la semilla, vuelve al primer paso y conserva el panel del preset', () => {
@@ -181,7 +202,7 @@ describe('DemoModeStore (presets y reinicio en 1 clic, X02)', () => {
     demo.previous();
     expect(demo.stepIndex()).toBe(0);
     demo.goTo(99);
-    expect(demo.stepIndex()).toBe(7);
+    expect(demo.stepIndex()).toBe(13);
     expect(demo.step().title).toBe('Resultados');
   });
 

@@ -2,6 +2,15 @@
 
 Todos los cambios relevantes del simulador comercial de IT2Pay se registran en este archivo.
 
+## [1.2.0] — Acceso por rol
+
+- Pantalla de login con usuarios ficticios precargados de los 8 perfiles de IT2Pay (Colocador, Punto de Venta, Asesor de Ventas, Operador, Finanzas, Aprobador financiero, Administrador y Super Usuario); la contraseña se llena sola. El menú lateral arranca oculto después de cada login.
+- Cada perfil ve en el menú solo sus opciones y solo sus acciones: la caja es del Colocador, la reversa del Operador, la parametrización del Super Usuario y los cupos del Operador. El Punto de Venta solo ve su PDV y confirma la anulación de los depósitos (antes, «Supervisor»).
+- Segregación de funciones en finanzas: Finanzas propone ajustes de conciliación y genera liquidaciones y cuentas de cobro; el Aprobador financiero los aprueba. Nadie aprueba lo que generó.
+- Vista «Roles y accesos» con la matriz de accesos y los diagramas de casos de uso, también disponible desde la guía.
+- La guía indica el usuario de cada paso y cambia de usuario en un clic («Ingresar como…»); ESC-01 pasa a 14 pasos.
+- Terminología: «Colocador (cajero)». Los datos guardados de versiones anteriores se descartan (esquema v3).
+
 ## [1.1.0] — Identidad visual de IT2Pay
 
 - Identidad visual tomada del portal transaccional IT2Pay: azul institucional `#0E4495`, azul claro y degradado aqua, franja izquierda en las tarjetas, logo de IT2Pay y tipografía Nunito autoalojada.

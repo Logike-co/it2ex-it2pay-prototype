@@ -22,6 +22,15 @@ export class CierreComponent {
   readonly methods = PAYMENT_METHODS;
   readonly methodLabels = METHOD_LABELS;
 
+  /** D-T4: el Colocador cierra su turno; el Punto de Venta consulta el arqueo de su PDV. */
+  readonly canClose = computed(() => this.store.can('cierre.cerrar'));
+  readonly registers = computed(() => {
+    const u = this.store.currentUser();
+    return this.state().registers.filter((r) =>
+      u?.profile === 'Colocador' ? u.registerIds.includes(r.id) : u?.profile === 'Punto de Venta' ? r.pdvId === u.pdvId : true
+    );
+  });
+
   readonly registerId = signal<string>(this.store.state().session.registerId ?? '');
   readonly lastClosing = signal<CashClosing | null>(null);
   readonly consulting = signal(false);
@@ -44,7 +53,10 @@ export class CierreComponent {
   readonly blockMessage = computed(() =>
     this.pending().length ? closingBlockMessage(this.pending().map((t) => t.id)) : null
   );
-  readonly history = computed(() => [...this.state().closings].reverse());
+  readonly history = computed(() => {
+    const ids = new Set(this.registers().map((r) => r.id));
+    return [...this.state().closings].filter((c) => ids.has(c.registerId)).reverse();
+  });
 
   cashier(id: string): string {
     return `${userName(this.state(), id)} (${id})`;

@@ -26,7 +26,9 @@
   } @else {
     <app-empty-state title="Sin transacciones vigentes en el periodo demo" />
   }
-  <button type="button" class="btn btn-primary mt-3" data-testid="btn-liquidar" (click)="liquidate()">Liquidar periodo demo</button>
+  @if (canGenerate()) {
+    <button type="button" class="btn btn-primary mt-3" data-testid="btn-liquidar" (click)="liquidate()">Liquidar periodo demo</button>
+  }
   <app-illustrative>Cada transacción aprobada que no sea reverso genera una comisión fija para la cadena y otra para IT2EX (por defecto 400 / 200), congelada al aprobar. Anuladas, reversadas, rechazadas y en verificación no generan comisión.</app-illustrative>
 </section>
 
@@ -35,15 +37,22 @@
   @if (liquidations().length) {
     @for (l of liquidations(); track l.id) {
       <div class="mb-3 rounded border border-line p-3" [attr.data-testid]="'liquidacion-' + l.id">
-        <p class="text-sm font-semibold"><span class="whitespace-nowrap">{{ l.id }}</span> · {{ l.status }} · periodo {{ l.period }} · {{ l.at | hora }}</p>
+        <p class="text-sm font-semibold"><span class="whitespace-nowrap">{{ l.id }}</span> · <span data-testid="liq-estado">{{ l.status }}</span> · periodo {{ l.period }} · {{ l.at | hora }}</p>
+        <p class="text-xs text-muted">Generó: {{ userOf(l.review.createdBy) }} · Revisó: {{ userOf(l.review.reviewedBy) }}</p>
         <p class="text-sm">
           <span data-testid="snap-tx">{{ l.totals.count }}</span> transacciones · cadena <span data-testid="snap-cadena">{{ l.totals.chain | money }}</span> · IT2EX
           <span data-testid="snap-it2ex">{{ l.totals.it2ex | money }}</span> · total <span data-testid="snap-total">{{ l.totals.total | money }}</span>
         </p>
+        @if (canApprove() && l.status === 'Pendiente de aprobación') {
+          <div class="mt-2 flex gap-2">
+            <button type="button" class="btn btn-primary" [attr.data-testid]="'aprobar-' + l.id" (click)="review('liquidacion', l.id, true)">Aprobar</button>
+            <button type="button" class="btn" [attr.data-testid]="'rechazar-' + l.id" (click)="review('liquidacion', l.id, false)">Rechazar</button>
+          </div>
+        }
       </div>
     }
   } @else {
-    <app-empty-state title="Sin liquidaciones" detail="Pulse «Liquidar periodo demo» para congelar un snapshot ilustrativo." />
+    <app-empty-state title="Sin liquidaciones" detail="Finanzas pulsa «Liquidar periodo demo» para congelar un snapshot ilustrativo; el Aprobador financiero lo aprueba." />
   }
 </section>
 
@@ -66,7 +75,9 @@
 
   <section class="card" data-testid="cuenta-cobro">
     <h2 class="card-title">Cuenta de cobro de ejemplo (C11 · P2) <app-legend /> <app-trace-badge [items]="['C11']" /></h2>
-    <button type="button" class="btn btn-primary mb-3" data-testid="btn-cuenta-cobro" (click)="generateCc()">Generar cuenta de cobro de ejemplo</button>
+    @if (canGenerate()) {
+      <button type="button" class="btn btn-primary mb-3" data-testid="btn-cuenta-cobro" (click)="generateCc()">Generar cuenta de cobro de ejemplo</button>
+    }
     @if (cc(); as c) {
       <article class="relative overflow-hidden rounded border-2 border-dashed border-ink bg-white p-4 text-sm" data-testid="documento-cc">
         <div aria-hidden="true" class="pointer-events-none absolute inset-0 flex items-center justify-center text-7xl font-black text-band/15 select-none" style="transform: rotate(-30deg)">DEMO</div>
@@ -74,6 +85,7 @@
           <p class="text-center font-bold text-band">SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL</p>
           <p class="text-center text-xs font-semibold">Documento de ejemplo — sin validez fiscal</p>
           <p class="mt-2 text-lg font-semibold" data-testid="cc-numero"><span class="whitespace-nowrap">{{ c.id }}</span></p>
+          <p>Estado: <span class="font-semibold" data-testid="cc-estado">{{ ccStatus(c.status) }}</span> · Generó: {{ userOf(c.review.createdBy) }} · Revisó: {{ userOf(c.review.reviewedBy) }}</p>
           <p>Emisor: <span data-testid="cc-emisor">{{ c.issuer }}</span></p>
           <p>Receptor: <span data-testid="cc-receptor">{{ c.receiver }}</span></p>
           <p>Periodo: {{ c.period }} · Liquidación de origen: <span class="whitespace-nowrap">{{ c.liquidationId }}</span></p>
@@ -90,8 +102,14 @@
           <p class="mt-2 text-center font-bold text-band">SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL</p>
         </div>
       </article>
+      @if (canApprove() && c.status === 'Pendiente de aprobación') {
+        <div class="mt-2 flex gap-2">
+          <button type="button" class="btn btn-primary" [attr.data-testid]="'aprobar-' + c.id" (click)="review('cuenta', c.id, true)">Aprobar y emitir</button>
+          <button type="button" class="btn" [attr.data-testid]="'rechazar-' + c.id" (click)="review('cuenta', c.id, false)">Rechazar</button>
+        </div>
+      }
     } @else {
-      <app-empty-state title="Sin cuenta de cobro" detail="Se genera desde la última liquidación: IT2EX → Reval (simulado) por la comisión IT2EX." />
+      <app-empty-state title="Sin cuenta de cobro" detail="Finanzas la genera desde una liquidación aprobada: IT2EX → Reval (simulado) por la comisión IT2EX." />
     }
     <app-illustrative>Cuenta de cobro de ejemplo: IT2EX S.A.S. (datos ficticios) → Reval (simulado), por la comisión IT2EX de una liquidación. Sin impuestos.</app-illustrative>
   </section>

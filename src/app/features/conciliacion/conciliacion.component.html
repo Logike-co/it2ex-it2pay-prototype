@@ -2,7 +2,9 @@
 
 <section class="card mb-4">
   <div class="flex flex-wrap items-center gap-3">
-    <button type="button" class="btn btn-primary" data-testid="btn-conciliar" (click)="run()">Ejecutar conciliación</button>
+    @if (canOperate()) {
+      <button type="button" class="btn btn-primary" data-testid="btn-conciliar" (click)="run()">Ejecutar conciliación</button>
+    }
     <span class="text-sm text-muted" data-testid="corte">
       Último corte: {{ state().lastConciliationAt ? (state().lastConciliationAt | fechaHora) : 'sin ejecutar' }} · IT2Pay frente a Reval (simulado)
     </span>
@@ -12,7 +14,7 @@
 @if (!state().lastConciliationAt) {
   <app-empty-state
     title="Aún no se ha ejecutado la conciliación en este escenario"
-    detail="Pulse «Ejecutar conciliación» para comparar IT2Pay con Reval (simulado). El resultado siempre es el vivo."
+    [detail]="canOperate() ? 'Pulse «Ejecutar conciliación» para comparar IT2Pay con Reval (simulado). El resultado siempre es el vivo.' : 'La conciliación la ejecuta Finanzas; aquí aparecerán sus propuestas para aprobar.'"
   />
 } @else {
   @let r = result();
@@ -28,7 +30,8 @@
     <p class="mt-2 text-xs text-muted">Las transacciones rechazadas no entran en la comparación.</p>
     <app-illustrative>Universos: TX de IT2Pay no rechazadas y registros de Reval (simulado) no rechazados; cruce por id compartido.
 Orden: 1) solo en un lado · 2) inconsistencia reportada · 3) diferencia de estado · 4) diferencia de valor · 5) conciliada.
-Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligatoria).</app-illustrative>
+Acciones de Finanzas: consultar estado · proponer reverso técnico · proponer ajuste (nota obligatoria).
+El reverso técnico y el ajuste se ejecutan cuando los aprueba el Aprobador financiero (RN-ACC-06).</app-illustrative>
   </section>
 
   <section class="card mb-4 overflow-x-auto" data-testid="excepciones">
@@ -47,7 +50,11 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
               <td class="num">{{ e.difference | signed }}</td>
               <td data-testid="excepcion-resolucion">{{ e.resolution }}{{ e.resolution === 'resuelta con ajuste' ? ' (ilustrativo)' : '' }}</td>
               <td class="whitespace-nowrap">
-                @if (e.resolution === 'abierta') {
+                @if (e.resolution === 'abierta' && pendingFor(e.id); as p) {
+                  <span class="rounded bg-warning-soft px-2 py-1 text-xs font-semibold text-warning" [attr.data-testid]="'pendiente-' + e.id">
+                    {{ p.kind }} pendiente de aprobación (<span class="whitespace-nowrap">{{ p.id }}</span>)
+                  </span>
+                } @else if (e.resolution === 'abierta' && canOperate()) {
                   @switch (action(e)) {
                     @case ('consulta') {
                       <button type="button" class="btn" [attr.data-testid]="'consultar-' + e.id" [disabled]="busy()" (click)="consult(e.id)">Consultar estado</button>
@@ -60,7 +67,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
                         [disabled]="busy() || shiftClosed(e)"
                         [attr.title]="shiftClosed(e) ? 'Turno cerrado: la transacción no se reversa' : null"
                         (click)="technicalReverse(e.id)"
-                      >Reverso técnico</button>
+                      >Proponer reverso técnico</button>
                       @if (shiftClosed(e)) {
                         <span class="block text-xs text-muted" [attr.data-testid]="'turno-cerrado-' + e.id">Turno cerrado: no se reversa</span>
                       }
@@ -68,7 +75,7 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
                     @default {
                       <div class="flex gap-1">
                         <input class="input w-40" placeholder="Nota (obligatoria)" [attr.data-testid]="'nota-' + e.id" [(ngModel)]="notes[e.id]" />
-                        <button type="button" class="btn" [attr.data-testid]="'ajuste-' + e.id" (click)="adjust(e.id)">Registrar ajuste</button>
+                        <button type="button" class="btn" [attr.data-testid]="'ajuste-' + e.id" (click)="adjust(e.id)">Proponer ajuste</button>
                       </div>
                     }
                   }
@@ -88,6 +95,36 @@ Acciones: consultar estado · reverso técnico · registrar ajuste (nota obligat
           <li [attr.data-testid]="'resuelta-' + x.txId"><span class="whitespace-nowrap">{{ x.txId }}</span> · {{ x.type }} · {{ x.resolution }}{{ x.note ? ' — ' + x.note : '' }} · {{ x.at | hora }}</li>
         }
       </ul>
+    }
+  </section>
+
+  <section class="card mb-4 overflow-x-auto" data-testid="propuestas">
+    <h2 class="card-title">Propuestas de ajuste (UC-17 y UC-18) <app-legend /></h2>
+    @if (proposals().length) {
+      <div class="overflow-x-auto"><table class="table">
+        <thead><tr><th>Propuesta</th><th>TX</th><th>Tipo</th><th>Nota</th><th>Propone</th><th>Estado</th><th>Revisa</th><th></th></tr></thead>
+        <tbody>
+          @for (p of proposals(); track p.id) {
+            <tr [attr.data-testid]="'propuesta-' + p.id">
+              <td><span class="whitespace-nowrap">{{ p.id }}</span></td>
+              <td><span class="whitespace-nowrap">{{ p.txId }}</span></td>
+              <td>{{ p.kind }}</td>
+              <td>{{ p.note ?? '—' }}</td>
+              <td>{{ userOf(p.review.createdBy) }}</td>
+              <td data-testid="propuesta-estado">{{ p.status }}</td>
+              <td>{{ userOf(p.review.reviewedBy) }}</td>
+              <td class="whitespace-nowrap">
+                @if (canApprove() && p.status === 'Pendiente de aprobación') {
+                  <button type="button" class="btn btn-primary" [attr.data-testid]="'aprobar-' + p.id" [disabled]="busy()" (click)="review(p.id, true)">Aprobar</button>
+                  <button type="button" class="btn ml-1" [attr.data-testid]="'rechazar-' + p.id" [disabled]="busy()" (click)="review(p.id, false)">Rechazar</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table></div>
+    } @else {
+      <app-empty-state title="Sin propuestas" detail="Finanzas propone el reverso técnico o el ajuste de una excepción; el Aprobador financiero lo aprueba." />
     }
   </section>
 

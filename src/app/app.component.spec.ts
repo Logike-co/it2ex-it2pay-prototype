@@ -3,6 +3,8 @@ import { provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 import { routes } from './app.routes';
 import { VIEWS } from './views';
+import { SimulatorStore } from './core/state/simulator.store';
+import { AccessView, VIEW_ACCESS } from './core/access/access';
 
 describe('AppComponent (shell)', () => {
   beforeEach(async () => {
@@ -13,7 +15,7 @@ describe('AppComponent (shell)', () => {
     }).compileComponents();
   });
 
-  it('muestra la banda fija de simulación, la marca IT2Pay y las 12 vistas', () => {
+  it('muestra la banda fija de simulación y la marca IT2Pay; sin sesión no hay menú', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
@@ -21,7 +23,22 @@ describe('AppComponent (shell)', () => {
       'SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL'
     );
     expect(el.querySelector('[data-testid="logotipo"]')?.textContent).toContain('IT2Pay');
-    expect(el.querySelectorAll('[data-testid^="nav-V"]')).toHaveLength(12);
+    expect(el.querySelector('[data-testid="menu"]')).toBeNull();
+    expect(el.querySelector('[data-testid="btn-menu"]')).toBeNull();
+  });
+
+  it('con sesión, el menú muestra solo las vistas del perfil y arranca oculto (D-T4)', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const store = TestBed.inject(SimulatorStore);
+    store.run((sim) => sim.signIn('OPE-S01'));
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const expected = (Object.keys(VIEW_ACCESS) as AccessView[]).filter((v) => VIEW_ACCESS[v].includes('Operador'));
+    const shown = [...el.querySelectorAll('[data-testid^="nav-"]')].map((a) => a.getAttribute('data-testid')!.slice(4));
+    expect(shown).toEqual(expected);
+    expect(el.querySelector('[data-testid="menu"]')?.classList).toContain('hidden');
+    expect(el.querySelector('[data-testid="btn-menu"]')?.getAttribute('aria-expanded')).toBe('false');
+    expect(el.querySelector('[data-testid="rol-sesion"]')?.textContent).toBe('Operador');
   });
 
   it('la barra superior no tiene controles de demo: viven en la guía', () => {

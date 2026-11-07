@@ -1,6 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { SimulatorStore } from '../core/state/simulator.store';
+import { AccessView, canView, homeFor } from '../core/access/access';
 import { VIEWS } from '../views';
 import { DemoPreset, presetById, PresetId, PRESETS, stepForView, stepViews } from './demo-script';
 
@@ -43,6 +44,11 @@ export class DemoModeStore {
     const steps = this.preset().steps;
     return steps[Math.min(this.stepIndex(), steps.length - 1)];
   });
+  /** Usuario demo del paso en curso (null si aún no existe: se crea en un paso anterior). */
+  readonly stepUser = computed(() => this.sim.state().users.find((u) => u.id === this.step().user) ?? null);
+  /** El paso se hace con otro usuario: la guía ofrece «Ingresar como…». */
+  readonly needsSwitch = computed(() => this.sim.currentUser()?.id !== this.step().user);
+
   /** La pantalla actual es una de las que recorre el paso en curso. */
   readonly viewInStep = computed(() => {
     const view = this.currentView();
@@ -97,8 +103,22 @@ export class DemoModeStore {
     this.stepIndex.set(0);
     this.hudOpen.set(true);
     this.save();
+    this.signInAs(preset.steps[0].user, preset.steps[0].route);
     this.sim.flash.set({ kind: 'ok', text: `${preset.id} · ${preset.name}: datos iniciales restaurados` });
-    this.router.navigateByUrl('/' + preset.steps[0].route);
+  }
+
+  /**
+   * «Ingresar como…» (D-T4): cierra la sesión actual, entra con el usuario demo y lleva a la
+   * vista del paso si su perfil la tiene; si no, a su inicio.
+   */
+  signInAs(userId: string, route = this.step().route): void {
+    const r = this.sim.exec((sim) => sim.signIn(userId));
+    if (!r.ok) {
+      return;
+    }
+    const view = viewOfUrl('/' + route) as AccessView | null;
+    const target = view && canView(r.value.profile, view) ? '/' + route : homeFor(r.value, !!this.sim.state().session.shiftId);
+    this.router.navigateByUrl(target);
   }
 
   /**
@@ -113,8 +133,8 @@ export class DemoModeStore {
     this.sim.run((s) => s.setPresenter({ nextAuthorization: preset.nextAuthorization }));
     this.stepIndex.set(0);
     this.save();
+    this.signInAs(preset.steps[0].user, preset.steps[0].route);
     this.sim.flash.set({ kind: 'ok', text: 'Reinicio en 1 clic: escenario restaurado a sus datos iniciales' });
-    this.router.navigateByUrl('/inicio');
   }
 
   goTo(index: number): void {
@@ -122,7 +142,11 @@ export class DemoModeStore {
     const i = Math.max(0, Math.min(index, steps.length - 1));
     this.stepIndex.set(i);
     this.save();
-    this.router.navigateByUrl('/' + steps[i].route);
+    // Solo navega si el perfil actual tiene la vista; si no, la guía ofrece «Ingresar como…».
+    const view = viewOfUrl('/' + steps[i].route) as AccessView | null;
+    if (view && canView(this.sim.role(), view)) {
+      this.router.navigateByUrl('/' + steps[i].route);
+    }
   }
 
   next(): void {

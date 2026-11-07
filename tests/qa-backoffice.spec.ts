@@ -1,9 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
 import { enGuia } from './guia';
+import { abrirTurno, ingresarComo, irA, limpio } from './sesion';
 
 /**
  * QA T.4c — Red, convenios, cupos, cierre, conciliación, compensación y
  * gestión financiera en la interfaz (E09..E15, E45, E47..E54, E57, E59).
+ * Cada acción la hace el perfil que la tiene (D-T4).
  */
 
 /** Sin errores de consola ni excepciones de página en ninguna prueba de QA. */
@@ -23,23 +25,14 @@ test.afterEach(() => {
 
 const ILLUSTRATIVE = 'Ilustrativo — sujeto a validación del responsable funcional';
 
-const fresh = async (page: Page) => {
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+const PATHS: Record<string, string> = {
+  V01: 'inicio', V02: 'dashboard', V03: 'red', V04: 'convenios', V05: 'caja', V06: 'caja/resultado',
+  V07: 'transacciones', V08: 'cupos', V09: 'cierre', V10: 'conciliacion', V11: 'compensacion', V12: 'finanzas',
 };
 
-const nav = (page: Page, id: string) => page.getByTestId(`nav-${id}`).click();
+const fresh = (page: Page) => limpio(page);
 
-const login = async (page: Page, chain: string, branch: string, register: string, user: string) => {
-  await nav(page, 'V01');
-  await page.getByTestId('sel-cadena').selectOption(chain);
-  await page.getByTestId('sel-sucursal').selectOption(branch);
-  await page.getByTestId('sel-caja').selectOption(register);
-  await page.getByTestId('sel-usuario').selectOption(user);
-  await page.getByTestId('btn-ingresar').click();
-  await expect(page).toHaveURL(/\/caja$/);
-};
+const nav = (page: Page, id: string) => irA(page, PATHS[id]);
 
 const newOp = async (page: Page) => {
   await nav(page, 'V05');
@@ -61,8 +54,8 @@ const recarga = async (page: Page, txId: string) => {
 
 test('E09..E15: red y convenios (crear, editar, habilitar, comisión diferenciada)', async ({ page }) => {
   await fresh(page);
-  // E09
-  await nav(page, 'V03');
+  // E09: el Asesor de Ventas crea y edita la cadena.
+  await ingresarComo(page, 'ASE-S01', 'red');
   await page.getByTestId('nueva-cadena').fill('Mercado Express Demo');
   await page.getByTestId('crear-cadena').click();
   const cad = page.getByTestId('cadena-CAD-S3');
@@ -73,12 +66,10 @@ test('E09..E15: red y convenios (crear, editar, habilitar, comisión diferenciad
   await page.getByTestId('editar-nombre-cadena').fill('Mercado Express Demo 2');
   await page.getByTestId('guardar-cadena').click();
   await expect(cad).toContainText('Mercado Express Demo 2');
-  await nav(page, 'V01');
-  await expect(page.getByTestId('sel-cadena')).toContainText('Mercado Express Demo 2');
   await nav(page, 'V02');
   await expect(page.getByTestId('dash-cadena')).toContainText('Mercado Express Demo 2');
 
-  // E10/E11/E12
+  // E10/E11/E12: el Asesor crea la sucursal y el PDV (nace PV-S04), que crea su caja y su colocador.
   await nav(page, 'V03');
   await page.getByTestId('sucursal-cadena').selectOption('CAD-S1');
   await page.getByTestId('nueva-sucursal').fill('Sucursal Demo Nueva');
@@ -86,37 +77,37 @@ test('E09..E15: red y convenios (crear, editar, habilitar, comisión diferenciad
   await page.getByTestId('pdv-sucursal').selectOption('SUC-S4');
   await page.getByTestId('nuevo-pdv').fill('Punto de servicios Nuevo');
   await page.getByTestId('crear-pdv').click();
+  await expect(page.getByTestId('aviso')).toContainText('PV-S04');
+  await ingresarComo(page, 'PV-S04', 'red');
   await page.getByTestId('caja-pdv').selectOption('PDV-S4');
   await page.getByTestId('crear-caja').click();
   await expect(page.getByTestId('caja-CJ-S4-01')).toContainText('Cerrada');
-  await page.getByTestId('nuevo-usuario').fill('Cajero Demo 05');
-  await page.getByTestId('usuario-perfil').selectOption('Cajero');
+  await page.getByTestId('nuevo-usuario').fill('Colocador Demo 05');
+  await page.getByTestId('usuario-perfil').selectOption('Colocador');
   await page.getByTestId('usuario-caja').selectOption('CJ-S4-01');
   await page.getByTestId('crear-usuario').click();
-  await expect(page.getByTestId('caja-CJ-S4-01')).toContainText('CAJ-S05');
+  await expect(page.getByTestId('caja-CJ-S4-01')).toContainText('COL-S05');
   await page.getByTestId('dispositivo-caja').selectOption('CJ-S4-01');
   await page.getByTestId('dispositivo-tipo').selectOption('Terminal web');
   await page.getByTestId('dispositivo-serial').fill('SIM-S-0007');
   await page.getByTestId('crear-dispositivo').click();
   await expect(page.getByTestId('dispositivo-DSP-S4-01')).toContainText('SIM-S-0007');
-  await nav(page, 'V01');
+  await ingresarComo(page, 'ASE-S01', 'inicio');
   const cov = page.getByTestId('cobertura-SUP');
   await expect(cov.getByTestId('cov-sucursales')).toHaveText('4');
   await expect(cov.getByTestId('cov-pdv')).toHaveText('4');
   await expect(cov.getByTestId('cov-cajas')).toHaveText('5');
-  await page.getByTestId('sel-cadena').selectOption('CAD-S1');
-  await page.getByTestId('sel-sucursal').selectOption('SUC-S4');
-  await page.getByTestId('sel-caja').selectOption('CJ-S4-01');
-  await expect(page.getByTestId('sel-usuario')).toContainText('Cajero Demo 05 (CAJ-S05)');
-  await nav(page, 'V08');
+  await ingresarComo(page, 'OPE-S01', 'cupos');
   await expect(page.getByTestId('cupo-PDV-S4-Recaudos')).toHaveCount(0);
-  // E03: ingresar a una caja sin turno abre T-S4-01 con base 100.000.
-  await login(page, 'CAD-S1', 'SUC-S4', 'CJ-S4-01', 'CAJ-S05');
+  // E03: el Colocador nuevo abre turno en su caja sin turno: T-S4-01 con base 100.000.
+  await ingresarComo(page, 'COL-S05');
+  await expect(page.getByTestId('sel-caja')).toContainText('CJ-S4-01');
+  await abrirTurno(page, 'CJ-S4-01', 100_000);
   await expect(page.getByTestId('caja-encabezado')).toContainText('Abierta · T-S4-01');
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 100.000');
 
-  // E13
-  await nav(page, 'V04');
+  // E13: el Super Usuario parametriza convenios.
+  await ingresarComo(page, 'SU-S01', 'convenios');
   await expect(page.getByTestId('catalogo-propuesto')).toHaveText('Catálogo propuesto');
   await page.getByTestId('srv-nombre').fill('Recaudo Gimnasio Demo');
   await page.getByTestId('srv-categoria').selectOption({ label: '2 Recaudos y pagos de obligaciones' });
@@ -145,24 +136,24 @@ test('E09..E15: red y convenios (crear, editar, habilitar, comisión diferenciad
   await expect(page.getByTestId('seccion-comisiones')).toContainText('350 / 200');
   await expect(page.getByTestId('seccion-comisiones').getByTestId('ilustrativo')).toContainText(ILLUSTRATIVE);
 
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
+  await ingresarComo(page, 'COL-S01');
   await expect(page.getByTestId('servicio-SRV-06')).toBeVisible();
   await expect(page.getByTestId('servicio-SRV-18')).toHaveCount(0);
   await recarga(page, 'TX-S-0011');
-  await nav(page, 'V07');
+  await ingresarComo(page, 'OPE-S01', 'transacciones');
   await page.getByTestId('fila-TX-S-0011').click();
   await expect(page.getByTestId('detalle-transaccion')).toContainText('350 / 200');
   await page.getByTestId('fila-TX-S-0003').click();
   await expect(page.getByTestId('detalle-transaccion')).toContainText('400 / 200');
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-02', 'CAJ-S02');
+  await ingresarComo(page, 'COL-S02');
   await expect(page.getByTestId('servicio-SRV-06')).toBeVisible();
-  await login(page, 'CAD-S1', 'SUC-S2', 'CJ-S2-01', 'CAJ-S03');
+  await ingresarComo(page, 'COL-S03');
   await expect(page.getByTestId('servicio-SRV-06')).toHaveCount(0);
 });
 
 test('E45: definir cupo quita la alerta y actualiza el dashboard', async ({ page }) => {
   await fresh(page);
-  await nav(page, 'V08');
+  await ingresarComo(page, 'OPE-S01', 'cupos');
   const row = page.getByTestId('cupo-PDV-S2-Recaudos');
   await expect(row.getByTestId('disponible')).toHaveText('$ 50.000');
   await page.getByTestId('asignado-PDV-S2-Recaudos').fill('2500000');
@@ -175,7 +166,7 @@ test('E45: definir cupo quita la alerta y actualiza el dashboard', async ({ page
 
 test('E47/E48/E49: cierre cuadrado, faltante, sobrante y bloqueo por verificación', async ({ page }) => {
   await fresh(page);
-  await login(page, 'CAD-S2', 'SUC-S3', 'CJ-S3-01', 'CAJ-S04');
+  await ingresarComo(page, 'COL-S04');
   await nav(page, 'V09');
   await expect(page.getByTestId('cierre-caja')).toHaveValue('CJ-S3-01');
   await expect(page.getByTestId('esperado-efectivo')).toContainText('$ 120.000');
@@ -187,18 +178,15 @@ test('E47/E48/E49: cierre cuadrado, faltante, sobrante y bloqueo por verificaci�
   await expect(res.getByTestId('cierre-diferencia')).toHaveText('−10.000');
   await expect(res.getByTestId('cierre-clasificacion')).toHaveText('Faltante');
   await expect(res.getByTestId('ilustrativo')).toContainText(ILLUSTRATIVE);
-  await nav(page, 'V02');
-  await expect(page.getByTestId('kpi-dif-cierre')).toHaveText('−10.000');
   await nav(page, 'V05');
   await expect(page.getByTestId('caja-cerrada')).toContainText('Caja cerrada: abra un turno para operar');
-  await nav(page, 'V01');
-  await page.getByTestId('sel-cadena').selectOption('CAD-S2');
-  await page.getByTestId('sel-sucursal').selectOption('SUC-S3');
-  await expect(page.getByTestId('sel-caja')).toContainText('CJ-S3-01 · PDV-S3 · Cerrada');
+  await ingresarComo(page, 'OPE-S01', 'dashboard');
+  await expect(page.getByTestId('kpi-dif-cierre')).toHaveText('−10.000');
 
   // Nuevo turno y sobrante.
-  await nav(page, 'V05');
-  await page.getByTestId('btn-abrir-turno').click();
+  await ingresarComo(page, 'COL-S04');
+  await expect(page.getByTestId('sel-caja')).toContainText('CJ-S3-01 · PDV-S3 · Cerrada');
+  await abrirTurno(page, 'CJ-S3-01', 100_000);
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 100.000');
   await nav(page, 'V09');
   await page.getByTestId('cierre-caja').selectOption('CJ-S3-01');
@@ -206,19 +194,21 @@ test('E47/E48/E49: cierre cuadrado, faltante, sobrante y bloqueo por verificaci�
   await page.getByTestId('btn-confirmar-cierre').click();
   await expect(page.getByTestId('cierre-diferencia')).toHaveText('+5.000');
   await expect(page.getByTestId('cierre-clasificacion')).toHaveText('Sobrante');
-  await nav(page, 'V02');
+  await ingresarComo(page, 'OPE-S01', 'dashboard');
   await expect(page.getByTestId('kpi-dif-cierre')).toHaveText('−5.000');
 
   // Cuadrada.
-  await nav(page, 'V05');
-  await page.getByTestId('btn-abrir-turno').click();
+  await ingresarComo(page, 'COL-S04');
+  await abrirTurno(page, 'CJ-S3-01', 100_000);
   await nav(page, 'V09');
   await page.getByTestId('cierre-caja').selectOption('CJ-S3-01');
   await page.getByTestId('cierre-declarado').fill('100000');
   await page.getByTestId('btn-confirmar-cierre').click();
   await expect(page.getByTestId('cierre-clasificacion')).toHaveText('Cuadrada');
 
-  // E49
+  // E49: el Colocador de CJ-S1-01 no cierra con una transacción en verificación.
+  await ingresarComo(page, 'COL-S01');
+  await nav(page, 'V09');
   await page.getByTestId('cierre-caja').selectOption('CJ-S1-01');
   await expect(page.getByTestId('cierre-bloqueado')).toContainText(
     '1 transacción en verificación (TX-S-0010): resuélvala antes de cerrar'
@@ -231,9 +221,9 @@ test('E47/E48/E49: cierre cuadrado, faltante, sobrante y bloqueo por verificaci�
   await expect(page.getByTestId('btn-confirmar-cierre')).toBeEnabled();
 });
 
-test('E51/E53/E54: conciliación por consulta y ajuste, consignaciones', async ({ page }) => {
+test('E51/E53/E54: conciliación por consulta y ajuste aprobado, consignaciones', async ({ page }) => {
   await fresh(page);
-  await nav(page, 'V10');
+  await ingresarComo(page, 'FIN-S01', 'conciliacion');
   await page.getByTestId('btn-conciliar').click();
   await page.getByTestId('consultar-TX-S-0010').click();
   await expect(page.getByTestId('resuelta-TX-S-0010')).toContainText('resuelta por consulta');
@@ -245,16 +235,20 @@ test('E51/E53/E54: conciliación por consulta y ajuste, consignaciones', async (
   await expect(page.getByTestId('cupo-PDV-S1-Recaudos').getByTestId('utilizado')).toHaveText('$ 1.050.200');
   await expect(page.getByTestId('cupo-PDV-S1-Recaudos').getByTestId('en-verificacion')).toHaveText('$ 0');
 
-  // E53
+  // E53: Finanzas propone el ajuste (nota obligatoria) y el Aprobador financiero lo aprueba.
   await nav(page, 'V10');
   await page.getByTestId('ajuste-TX-S-0006').click();
   await expect(page.getByTestId('aviso')).toBeVisible();
   await expect(page.getByTestId('excepcion-TX-S-0006').getByTestId('excepcion-resolucion')).toHaveText('abierta');
   await page.getByTestId('nota-TX-S-0006').fill('Ajuste ilustrativo');
   await page.getByTestId('ajuste-TX-S-0006').click();
+  await expect(page.getByTestId('pendiente-TX-S-0006')).toContainText('PRO-S-001');
+  await expect(page.getByTestId('aprobar-PRO-S-001')).toHaveCount(0);
+  await ingresarComo(page, 'APR-S01', 'conciliacion');
+  await page.getByTestId('aprobar-PRO-S-001').click();
   await expect(page.getByTestId('resuelta-TX-S-0006')).toContainText('resuelta con ajuste');
   await expect(page.getByTestId('conc-abiertas')).toHaveText('0');
-  await nav(page, 'V07');
+  await ingresarComo(page, 'FIN-S01', 'transacciones');
   await page.getByTestId('fila-TX-S-0006').click();
   await expect(page.getByTestId('detalle-transaccion')).toContainText('$ 85.000');
   await expect(page.getByTestId('detalle-transaccion')).toContainText('Aprobada');
@@ -284,19 +278,29 @@ test('E51/E53/E54: conciliación por consulta y ajuste, consignaciones', async (
   await expect(page.getByTestId('cupo-PDV-S2-Recaudos').getByTestId('utilizado')).toHaveText('$ 1.950.000');
 });
 
-test('E57/E59: liquidación snapshot y cuenta de cobro de ejemplo', async ({ page }) => {
+test('E57/E59: liquidación snapshot y cuenta de cobro de ejemplo, con aprobación', async ({ page }) => {
   await fresh(page);
-  await nav(page, 'V12');
+  await ingresarComo(page, 'FIN-S01', 'finanzas');
   await page.getByTestId('btn-cuenta-cobro').click();
   await expect(page.getByTestId('aviso')).toContainText('Primero liquide el periodo demo');
   await page.getByTestId('btn-liquidar').click();
   const liq = page.getByTestId('liquidacion-LIQ-S-001');
-  await expect(liq).toContainText('Liquidada (ilustrativa)');
+  await expect(liq.getByTestId('liq-estado')).toHaveText('Pendiente de aprobación');
   await expect(liq.getByTestId('snap-tx')).toHaveText('5');
   await expect(liq.getByTestId('snap-total')).toHaveText('$ 3.050');
+  // RN-ACC-06: Finanzas no aprueba y la cuenta de cobro exige una liquidación aprobada.
+  await expect(page.getByTestId('aprobar-LIQ-S-001')).toHaveCount(0);
+  await page.getByTestId('btn-cuenta-cobro').click();
+  await expect(page.getByTestId('aviso')).toContainText('liquidación aprobada');
+  await ingresarComo(page, 'APR-S01', 'finanzas');
+  await expect(page.getByTestId('btn-liquidar')).toHaveCount(0);
+  await page.getByTestId('aprobar-LIQ-S-001').click();
+  await expect(liq.getByTestId('liq-estado')).toHaveText('Aprobada');
+  await ingresarComo(page, 'FIN-S01', 'finanzas');
   await page.getByTestId('btn-cuenta-cobro').click();
   const cc = page.getByTestId('documento-cc');
   await expect(page.getByTestId('cc-numero')).toHaveText('CC-DEMO-S-0001');
+  await expect(page.getByTestId('cc-estado')).toHaveText('Pendiente de aprobación');
   await expect(page.getByTestId('cc-emisor')).toHaveText('IT2EX S.A.S. (datos ficticios)');
   await expect(page.getByTestId('cc-receptor')).toHaveText('Reval (simulado)');
   await expect(page.getByTestId('cc-concepto')).toHaveText('Servicio de integración — comisión IT2EX del periodo demo');
@@ -306,21 +310,26 @@ test('E57/E59: liquidación snapshot y cuenta de cobro de ejemplo', async ({ pag
   await expect(cc).toContainText('Documento de ejemplo — sin validez fiscal');
   await expect(cc).toContainText('DEMO');
   await expect(cc).toContainText('SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL');
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
+  await ingresarComo(page, 'APR-S01', 'finanzas');
+  await page.getByTestId('aprobar-CC-DEMO-S-0001').click();
+  await expect(page.getByTestId('cc-estado')).toHaveText('Emitida (simulado)');
+  await ingresarComo(page, 'COL-S01');
   await recarga(page, 'TX-S-0011');
-  await nav(page, 'V12');
+  await ingresarComo(page, 'FIN-S01', 'finanzas');
   await expect(page.getByTestId('liq-total-tx')).toHaveText('6');
   await expect(page.getByTestId('liquidacion-LIQ-S-001').getByTestId('snap-tx')).toHaveText('5');
 });
 
-test('E52: reverso técnico en Parqueaderos', async ({ page }) => {
-  await fresh(page);
-  await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
-  await login(page, 'CAD-P1', 'SUC-P1', 'CJ-P1-01', 'CAJ-P01');
+test('E52: reverso técnico en Parqueaderos, propuesto por Finanzas y aprobado', async ({ page }) => {
+  await limpio(page, 'PAR');
+  await ingresarComo(page, 'COL-P01');
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 445.000');
-  await nav(page, 'V10');
+  await ingresarComo(page, 'FIN-P01', 'conciliacion');
   await page.getByTestId('btn-conciliar').click();
   await page.getByTestId('reverso-tecnico-TX-P-0005').click();
+  await expect(page.getByTestId('pendiente-TX-P-0005')).toContainText('PRO-P-001');
+  await ingresarComo(page, 'APR-P01', 'conciliacion');
+  await page.getByTestId('aprobar-PRO-P-001').click();
   await expect(page.getByTestId('resuelta-TX-P-0005')).toContainText('resuelta por reverso técnico');
   await expect(page.getByTestId('conc-comparados')).toHaveText('8');
   await expect(page.getByTestId('conc-conciliados')).toHaveText('8');
@@ -335,55 +344,54 @@ test('E52: reverso técnico en Parqueaderos', async ({ page }) => {
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 390.000');
   await expect(page.getByTestId('kpi-com-cadena')).toHaveText('$ 1.500');
   await expect(page.getByTestId('kpi-com-it2ex')).toHaveText('$ 750');
-  await nav(page, 'V08');
+  await ingresarComo(page, 'OPE-P01', 'cupos');
   await expect(page.getByTestId('cupo-PDV-P1-Recaudos').getByTestId('utilizado')).toHaveText('$ 580.000');
-  await nav(page, 'V05');
+  await ingresarComo(page, 'COL-P01');
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 350.000');
 });
 
 test('E04/R-18: persistencia al recargar, reinicio aislado por escenario y «Reiniciar todo»', async ({ page }) => {
   await fresh(page);
   // SUP: crear PDV-S4 y aprobar TX-S-0011; abrir panel y cambiar modalidad.
-  await nav(page, 'V03');
+  await ingresarComo(page, 'ASE-S01', 'red');
   await page.getByTestId('sucursal-cadena').selectOption('CAD-S1');
   await page.getByTestId('nueva-sucursal').fill('Sucursal Demo Nueva');
   await page.getByTestId('crear-sucursal').click();
   await page.getByTestId('pdv-sucursal').selectOption('SUC-S4');
   await page.getByTestId('nuevo-pdv').fill('Punto de servicios Nuevo');
   await page.getByTestId('crear-pdv').click();
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
+  await ingresarComo(page, 'COL-S01');
   await recarga(page, 'TX-S-0011');
-  await nav(page, 'V11');
+  await ingresarComo(page, 'FIN-S01', 'compensacion');
   await page.getByTestId('modalidad-descontado').check();
   await nav(page, 'V12');
   await page.getByTestId('btn-liquidar').click();
   await (await enGuia(page, 'btn-presentador')).click();
   await page.getByTestId('panel-idempotencia').uncheck();
 
-  // PAR: una operación.
+  // PAR: una operación (cada escenario tiene su propia sesión).
   await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
-  await login(page, 'CAD-P2', 'SUC-P3', 'CJ-P3-01', 'CAJ-P04');
+  await expect(page).toHaveURL(/\/login$/);
+  await ingresarComo(page, 'COL-P04');
   await recarga(page, 'TX-P-0009');
 
-  // Recargar conserva ambos escenarios y el activo.
+  // Recargar conserva ambos escenarios, el activo y la sesión de cada uno.
   await page.reload();
   await expect((await enGuia(page, 'selector-escenario'))).toHaveValue('PAR');
   await nav(page, 'V07');
   await expect(page.getByTestId('fila-TX-P-0009')).toBeVisible();
   await (await enGuia(page, 'selector-escenario')).selectOption('SUP');
+  await expect(page.getByTestId('usuario-sesion')).toContainText('FIN-S01');
   await expect(page.getByTestId('fila-TX-S-0011')).toBeVisible();
-  await expect(page.getByTestId('sesion-encabezado')).toContainText('CJ-S1-01');
 
-  // Reiniciar escenario (SUP).
+  // Reiniciar escenario (SUP): el usuario sigue en sesión.
   await (await enGuia(page, 'btn-reiniciar')).click();
   await expect(page.getByTestId('dialogo-reinicio')).toContainText('el otro escenario no se toca');
   await page.getByTestId('confirmar-reinicio').click();
   await expect(page).toHaveURL(/\/inicio$/);
-  await expect(page.getByTestId('sesion-encabezado')).toHaveText(/Sin caja seleccionada/);
+  await expect(page.getByTestId('usuario-sesion')).toContainText('FIN-S01');
   await nav(page, 'V07');
   await expect(page.getByTestId('conteo-transacciones')).toHaveText('10 transacciones');
-  await nav(page, 'V03');
-  await expect(page.getByTestId('seccion-sucursales')).not.toContainText('PDV-S4');
   await nav(page, 'V02');
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 612.700');
   await expect(page.getByTestId('kpi-excepciones')).toHaveText('2');
@@ -399,11 +407,14 @@ test('E04/R-18: persistencia al recargar, reinicio aislado por escenario y «Rei
   await expect(page.getByTestId('panel-idempotencia')).toBeChecked();
   await expect(page.getByTestId('panel-autorizacion')).toHaveValue('gatillo');
   await expect(page.getByTestId('panel-reverso')).toHaveValue('aprobado');
-  await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
+  await ingresarComo(page, 'ASE-S01', 'red');
+  await expect(page.getByTestId('seccion-sucursales')).not.toContainText('PDV-S4');
+  await ingresarComo(page, 'COL-S01');
   await recarga(page, 'TX-S-0011');
 
   // PAR conserva su estado.
   await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
+  await expect(page.getByTestId('usuario-sesion')).toContainText('COL-P04');
   await nav(page, 'V07');
   await expect(page.getByTestId('fila-TX-P-0009')).toBeVisible();
 
@@ -413,5 +424,7 @@ test('E04/R-18: persistencia al recargar, reinicio aislado por escenario y «Rei
   await nav(page, 'V07');
   await expect(page.getByTestId('fila-TX-P-0009')).toHaveCount(0);
   await (await enGuia(page, 'selector-escenario')).selectOption('SUP');
+  await expect(page.getByTestId('usuario-sesion')).toContainText('COL-S01');
+  await nav(page, 'V07');
   await expect(page.getByTestId('fila-TX-S-0011')).toHaveCount(0);
 });

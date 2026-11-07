@@ -5,6 +5,7 @@ import { STATUS_LABELS, TRACE_LABELS, TYPE_LABELS } from '../../core/simulation/
 import { TransactionType, TxStatus } from '../../core/simulation/model';
 import { branchName, chainName, isCurrent, serviceName } from '../../core/simulation/selectors';
 import { SimulatorStore } from '../../core/state/simulator.store';
+import { scopeOf } from '../../core/access/access';
 import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { SIM_PIPES } from '../../shared/pipes';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
@@ -55,10 +56,22 @@ export class TransaccionesComponent {
     });
   }
 
+  /** RN-ACC-04: el Colocador ve sus movimientos y el Punto de Venta su PDV. */
+  readonly scope = computed(() => scopeOf(this.store.currentUser()));
+  readonly visible = computed(() => {
+    const sc = this.scope();
+    const txs = this.state().transactions;
+    return sc.kind === 'own'
+      ? txs.filter((t) => t.operatorId === sc.userId)
+      : sc.kind === 'pdv'
+        ? txs.filter((t) => t.pdvId === sc.pdvId)
+        : txs;
+  });
+
   readonly rows = computed(() => {
     const s = this.state();
     const text = this.fText().trim().toLowerCase();
-    return [...s.transactions]
+    return [...this.visible()]
       .filter((t) => !this.fStatus() || t.status === this.fStatus())
       .filter((t) => !this.fType() || t.type === this.fType())
       .filter((t) => !this.fChain() || t.chainId === this.fChain())
@@ -79,12 +92,14 @@ export class TransaccionesComponent {
 
   readonly groups = computed(() => {
     const s = this.state();
-    const current = s.transactions.filter(isCurrent);
+    const current = this.visible().filter(isCurrent);
+    const scoped = this.scope().kind !== 'all';
+    const keep = <T extends { count: number }>(g: T) => !scoped || g.count > 0;
     if (this.grouping() === 'caja') {
       return s.registers.map((r) => {
         const txs = current.filter((t) => t.registerId === r.id);
         return { key: r.id, label: `${r.id} · ${r.pdvId}`, count: txs.length, total: txs.reduce((a, t) => a + t.value, 0) };
-      });
+      }).filter(keep);
     }
     return s.branches.map((b) => {
       const txs = current.filter((t) => t.branchId === b.id);
@@ -94,7 +109,7 @@ export class TransaccionesComponent {
         count: txs.length,
         total: txs.reduce((a, t) => a + t.value, 0),
       };
-    });
+    }).filter(keep);
   });
 
   serviceOf(id: string | null): string {

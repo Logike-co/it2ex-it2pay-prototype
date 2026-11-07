@@ -22,6 +22,9 @@ import { TraceBadgeComponent } from '../../shared/trace-badge.component';
 export class FinanzasComponent {
   private readonly store = inject(SimulatorStore);
   readonly state = this.store.state;
+  /** RN-ACC-06: Finanzas liquida y genera la cuenta de cobro; el Aprobador financiero aprueba. */
+  readonly canGenerate = computed(() => this.store.can('finanzas.generar'));
+  readonly canApprove = computed(() => this.store.can('finanzas.aprobar'));
 
   readonly rows = computed(() => liveLiquidationRows(this.state()));
   readonly totals = computed(() => liquidationTotals(this.rows()));
@@ -46,6 +49,19 @@ export class FinanzasComponent {
 
   serviceLabel(id: string): string {
     return serviceName(this.state(), id);
+  }
+
+  userOf(id: string | null): string {
+    return id ? (this.state().users.find((u) => u.id === id)?.name ?? id) : '—';
+  }
+
+  /** La cuenta de cobro aprobada queda «Emitida (simulado)». */
+  ccStatus(status: string): string {
+    return status === 'Aprobada' ? 'Emitida (simulado)' : status;
+  }
+
+  review(kind: 'liquidacion' | 'cuenta', id: string, approve: boolean): void {
+    this.store.exec((sim) => sim.review(kind, id, approve));
   }
 
   liquidate(): void {

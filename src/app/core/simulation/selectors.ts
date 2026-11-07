@@ -551,7 +551,7 @@ export const coverage = (s: ScenarioState) => {
     branches: branches.length,
     pdvs: pdvs.length,
     registers: registers.length,
-    cashiers: s.users.filter((u) => u.profile === 'Cajero' && u.active).length,
+    cashiers: s.users.filter((u) => u.profile === 'Colocador' && u.active).length,
     services: enabled.size,
   };
 };

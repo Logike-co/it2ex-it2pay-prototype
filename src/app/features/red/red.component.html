@@ -2,6 +2,7 @@
 <p class="mb-4 text-sm text-muted">Cadena (aliado comercial) → sucursal (establecimiento) → PDV → caja. Todos los registros son ficticios.</p>
 
 <div class="grid gap-4 @5xl:grid-cols-2">
+  @if (seesNetwork()) {
   <section class="card" data-testid="seccion-cadenas">
     <h2 class="card-title">Cadenas (B01) <app-trace-badge [items]="['B01']" /></h2>
     <div class="overflow-x-auto"><table class="table mb-3">
@@ -20,21 +21,27 @@
             <td class="text-xs">{{ c.nit }}</td>
             <td>{{ c.active ? 'Activa' : 'Inactiva' }}</td>
             <td class="whitespace-nowrap">
-              @if (editingChain() === c.id) {
-                <button type="button" class="btn" data-testid="guardar-cadena" (click)="saveChain(c.id)">Guardar</button>
-              } @else {
-                <button type="button" class="btn" [attr.data-testid]="'editar-' + c.id" (click)="startEdit(c.id, c.name)">Editar</button>
+              @if (can('red.cadenas')) {
+                @if (editingChain() === c.id) {
+                  <button type="button" class="btn" data-testid="guardar-cadena" (click)="saveChain(c.id)">Guardar</button>
+                } @else {
+                  <button type="button" class="btn" [attr.data-testid]="'editar-' + c.id" (click)="startEdit(c.id, c.name)">Editar</button>
+                }
               }
-              <button type="button" class="btn" (click)="toggleChain(c.id, !c.active)">{{ c.active ? 'Inactivar' : 'Activar' }}</button>
+              @if (can('red.activar')) {
+                <button type="button" class="btn" (click)="toggleChain(c.id, !c.active)">{{ c.active ? 'Inactivar' : 'Activar' }}</button>
+              }
             </td>
           </tr>
         }
       </tbody>
     </table></div>
+    @if (can('red.cadenas')) {
     <div class="flex gap-2">
       <input class="input" placeholder="Nombre de la cadena (ficticio)" data-testid="nueva-cadena" [(ngModel)]="newChain" />
       <button type="button" class="btn btn-primary" data-testid="crear-cadena" (click)="createChain()">Crear cadena</button>
     </div>
+    }
   </section>
 
   <section class="card" data-testid="seccion-sucursales">
@@ -50,19 +57,24 @@
               @for (p of state().pdvs; track p.id) {
                 @if (p.branchId === b.id) {
                   <div><span class="whitespace-nowrap">{{ p.id }}</span> · {{ p.name }} <span class="text-xs text-muted">({{ p.activityType }}{{ p.active ? '' : ', inactivo' }})</span>
-                    <button type="button" class="ml-1 text-xs underline" (click)="toggle('pdv', p.id, !p.active)">{{ p.active ? 'Inactivar' : 'Activar' }}</button>
+                    @if (can('red.activar')) {
+                      <button type="button" class="ml-1 text-xs underline" [attr.data-testid]="'activar-' + p.id" (click)="toggle('pdv', p.id, !p.active)">{{ p.active ? 'Inactivar' : 'Activar' }}</button>
+                    }
                   </div>
                 }
               }
             </td>
             <td>
               {{ b.active ? 'Activa' : 'Inactiva' }}
-              <button type="button" class="ml-1 text-xs underline" (click)="toggle('branch', b.id, !b.active)">{{ b.active ? 'Inactivar' : 'Activar' }}</button>
+              @if (can('red.activar')) {
+                <button type="button" class="ml-1 text-xs underline" (click)="toggle('branch', b.id, !b.active)">{{ b.active ? 'Inactivar' : 'Activar' }}</button>
+              }
             </td>
           </tr>
         }
       </tbody>
     </table></div>
+    @if (can('red.pdv')) {
     <div class="mb-2 grid gap-2 @3xl:grid-cols-3">
       <select class="input" data-testid="sucursal-cadena" [(ngModel)]="branchChain">
         <option value="">— Cadena —</option>
@@ -83,14 +95,18 @@
       <input class="input" placeholder="Nombre del PDV" data-testid="nuevo-pdv" [(ngModel)]="newPdv" />
       <button type="button" class="btn btn-primary" data-testid="crear-pdv" (click)="createPdv()">Crear PDV</button>
     </div>
+    <p class="mt-2 text-xs text-muted">Cada PDV nuevo crea su usuario Punto de Venta (RN-ACC-03).</p>
+    }
   </section>
+  }
 
+  @if (seesRegisters()) {
   <section class="card" data-testid="seccion-cajas">
     <h2 class="card-title">Cajas <app-trace-badge [items]="['B02']" /></h2>
     <div class="overflow-x-auto"><table class="table mb-3">
-      <thead><tr><th>Caja</th><th>PDV</th><th>Estado</th><th>Cajeros</th><th>Dispositivos</th></tr></thead>
+      <thead><tr><th>Caja</th><th>PDV</th><th>Estado</th><th>Colocadores</th><th>Dispositivos</th></tr></thead>
       <tbody>
-        @for (r of state().registers; track r.id) {
+        @for (r of registers(); track r.id) {
           <tr [attr.data-testid]="'caja-' + r.id">
             <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ r.id }}</span></td>
             <td><span class="whitespace-nowrap">{{ r.pdvId }}</span> · {{ pdvOf(r.pdvId) }}</td>
@@ -101,71 +117,81 @@
         }
       </tbody>
     </table></div>
+    @if (can('red.cajas')) {
     <div class="grid gap-2 @3xl:grid-cols-3">
       <select class="input @3xl:col-span-2" data-testid="caja-pdv" [(ngModel)]="registerPdv">
         <option value="">— PDV —</option>
-        @for (p of state().pdvs; track p.id) {
+        @for (p of pdvs(); track p.id) {
           <option [value]="p.id">{{ p.id }} · {{ p.name }}</option>
         }
       </select>
       <button type="button" class="btn btn-primary" data-testid="crear-caja" (click)="createRegister()">Crear caja</button>
     </div>
+    }
   </section>
+  }
 
   <section class="card" data-testid="seccion-cajeros">
-    <h2 class="card-title">Cajeros y usuarios (B03) <app-trace-badge [items]="['B03']" /></h2>
+    <h2 class="card-title">{{ role() === 'Administrador' ? 'Usuarios internos' : 'Colocadores y usuarios' }} (B03) <app-trace-badge [items]="['B03']" /></h2>
     <div class="overflow-x-auto"><table class="table mb-3">
       <thead><tr><th>Id</th><th>Nombre</th><th>Perfil</th><th>Cajas</th></tr></thead>
       <tbody>
-        @for (u of state().users; track u.id) {
-          <tr>
+        @for (u of users(); track u.id) {
+          <tr [attr.data-testid]="'usuario-' + u.id">
             <td class="font-mono text-xs"><span class="whitespace-nowrap">{{ u.id }}</span></td>
             <td>{{ u.name }}</td>
             <td>{{ u.profile }}</td>
-            <td class="text-xs"><app-code-text [text]="u.profile === 'Supervisor' ? 'Todas las cajas' : u.registerIds.join(', ') || '—'" /></td>
+            <td class="text-xs"><app-code-text [text]="u.registerIds.join(', ') || (u.pdvId ?? '—')" /></td>
           </tr>
         }
       </tbody>
     </table></div>
+    @if (profiles().length) {
     <div class="mb-2 grid gap-2 @3xl:grid-cols-4">
       <input class="input" placeholder="Nombre genérico ficticio" data-testid="nuevo-usuario" [(ngModel)]="userName" />
       <select class="input" data-testid="usuario-perfil" [(ngModel)]="userProfile">
-        @for (p of profiles; track p) {
+        @for (p of profiles(); track p) {
           <option [value]="p">{{ p }}</option>
         }
       </select>
-      <select class="input" data-testid="usuario-caja" [(ngModel)]="userRegister">
-        <option value="">— Caja asignada —</option>
-        @for (r of state().registers; track r.id) {
-          <option [value]="r.id">{{ r.id }}</option>
-        }
-      </select>
-      <button type="button" class="btn btn-primary" data-testid="crear-usuario" (click)="createUser()">Crear y asignar</button>
+      @if (can('red.colocadores')) {
+        <select class="input" data-testid="usuario-caja" [(ngModel)]="userRegister">
+          <option value="">— Caja asignada —</option>
+          @for (r of registers(); track r.id) {
+            <option [value]="r.id">{{ r.id }}</option>
+          }
+        </select>
+      }
+      <button type="button" class="btn btn-primary" data-testid="crear-usuario" (click)="createUser()">{{ can('red.colocadores') ? 'Crear y asignar' : 'Crear usuario' }}</button>
     </div>
+    }
+    @if (can('red.colocadores')) {
     <div class="grid gap-2 @3xl:grid-cols-3">
       <select class="input" data-testid="asignar-usuario" [(ngModel)]="assignUser">
         <option value="">— Usuario —</option>
-        @for (u of state().users; track u.id) {
+        @for (u of users(); track u.id) {
           <option [value]="u.id">{{ u.id }} · {{ u.name }}</option>
         }
       </select>
       <select class="input" data-testid="asignar-caja" [(ngModel)]="assignRegister">
         <option value="">— Caja —</option>
-        @for (r of state().registers; track r.id) {
+        @for (r of registers(); track r.id) {
           <option [value]="r.id">{{ r.id }}</option>
         }
       </select>
       <button type="button" class="btn" data-testid="btn-asignar" (click)="assign()">Asignar a la caja</button>
     </div>
+    }
   </section>
 
+  @if (seesRegisters()) {
   <section class="card @5xl:col-span-2" data-testid="seccion-dispositivos">
     <h2 class="card-title">Dispositivos lógicos (B04 · P2) <span class="text-xs font-normal text-muted">No afectan la operación de la caja</span> <app-trace-badge [items]="['B04']" /></h2>
-    @if (state().devices.length) {
+    @if (devicesList().length) {
       <div class="overflow-x-auto"><table class="table mb-3">
         <thead><tr><th>Id</th><th>Caja</th><th>Tipo</th><th>Serial</th><th>Estado</th></tr></thead>
         <tbody>
-          @for (d of state().devices; track d.id) {
+          @for (d of devicesList(); track d.id) {
             <tr [attr.data-testid]="'dispositivo-' + d.id"><td class="font-mono text-xs"><span class="whitespace-nowrap">{{ d.id }}</span></td><td><span class="whitespace-nowrap">{{ d.registerId }}</span></td><td>{{ d.type }}</td><td><span class="whitespace-nowrap">{{ d.serial }}</span></td><td>{{ d.active ? 'Activo' : 'Inactivo' }}</td></tr>
           }
         </tbody>
@@ -173,10 +199,11 @@
     } @else {
       <app-empty-state title="Sin dispositivos registrados" />
     }
+    @if (can('red.cajas')) {
     <div class="grid gap-2 @3xl:grid-cols-4">
       <select class="input" data-testid="dispositivo-caja" [(ngModel)]="deviceRegister">
         <option value="">— Caja —</option>
-        @for (r of state().registers; track r.id) {
+        @for (r of registers(); track r.id) {
           <option [value]="r.id">{{ r.id }}</option>
         }
       </select>
@@ -188,5 +215,7 @@
       <input class="input" [placeholder]="'Serial (sugerido ' + suggestedSerial() + ')'" data-testid="dispositivo-serial" [(ngModel)]="deviceSerial" />
       <button type="button" class="btn btn-primary" data-testid="crear-dispositivo" (click)="createDevice()">Registrar dispositivo</button>
     </div>
+    }
   </section>
+  }
 </div>

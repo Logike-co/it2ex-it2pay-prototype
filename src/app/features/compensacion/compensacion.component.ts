@@ -17,6 +17,8 @@ import { TraceBadgeComponent } from '../../shared/trace-badge.component';
 export class CompensacionComponent {
   private readonly store = inject(SimulatorStore);
   readonly state = this.store.state;
+  /** D-T4: Finanzas opera la compensación; el Aprobador financiero consulta. */
+  readonly canOperate = computed(() => this.store.can('compensacion.operar'));
   readonly lines = BUSINESS_LINES;
 
   readonly comp = computed(() => compensation(this.state()));

@@ -27,8 +27,18 @@ const setup = (scenario: ScenarioId = 'SUP') => {
 };
 
 const loginS1 = (sim: Simulator) => {
-  const r = sim.login('CJ-S1-01', 'CAJ-S01');
+  const r = sim.login('CJ-S1-01', 'COL-S01');
   expect(r.ok).toBe(true);
+};
+
+/** El Aprobador financiero aprueba y cierra su sesión (RN-ACC-06). */
+const approve = (sim: Simulator, kind: 'propuesta' | 'liquidacion' | 'cuenta', id: string) => {
+  sim.signIn(`APR-${sim.state.id[0]}01`);
+  const r = sim.review(kind, id, true);
+  sim.signOut();
+  if (!r.ok) {
+    throw new Error(r.error);
+  }
 };
 
 const okValue = <T>(r: { ok: true; value: T } | { ok: false; error: string }): T => {
@@ -180,7 +190,7 @@ describe('Sesión e inicio (V01)', () => {
 
   it('E02: ingresa al turno abierto T-S1-01 con base 200.000', () => {
     const { sim } = setup();
-    const shift = okValue(sim.login('CJ-S1-01', 'CAJ-S01'));
+    const shift = okValue(sim.login('CJ-S1-01', 'COL-S01'));
     expect(shift.id).toBe('T-S1-01');
     expect(shift.baseCash).toBe(200_000);
     expect(sim.state.session.registerId).toBe('CJ-S1-01');
@@ -191,11 +201,11 @@ describe('Sesión e inicio (V01)', () => {
     expect(okValue(sim.createBranch('CAD-S1', 'Sucursal Demo Nueva'))).toBe('SUC-S4');
     expect(okValue(sim.createPdv('SUC-S4', 'Punto de servicios Nuevo'))).toBe('PDV-S4');
     expect(okValue(sim.createRegister('PDV-S4'))).toBe('CJ-S4-01');
-    expect(okValue(sim.createUser('Cajero Demo 05', 'Cajero', ['CJ-S4-01']))).toBe('CAJ-S05');
+    expect(okValue(sim.createUser('Colocador Demo 05', 'Colocador', ['CJ-S4-01']))).toBe('COL-S05');
     const cov = coverage(sim.state);
     expect([cov.branches, cov.pdvs, cov.registers]).toEqual([4, 4, 5]);
     expect(quotaStatus(sim.state, 'PDV-S4', 'Recaudos').defined).toBe(false);
-    const shift = okValue(sim.login('CJ-S4-01', 'CAJ-S05', 100_000));
+    const shift = okValue(sim.login('CJ-S4-01', 'COL-S05', 100_000));
     expect([shift.id, shift.baseCash]).toEqual(['T-S4-01', 100_000]);
     expect(sim.state.registers.find((r) => r.id === 'CJ-S4-01')?.currentShiftId).toBe('T-S4-01');
   });
@@ -367,15 +377,15 @@ describe('Terminal de caja (V05)', () => {
 
   it('E27: bloqueo por cupo sin crear transacción', () => {
     const { sim } = setup();
-    sim.login('CJ-S2-01', 'CAJ-S03');
+    sim.login('CJ-S2-01', 'COL-S03');
     expect(errorOf(recaudoEnel(sim, '4500112100', 98_700))).toBe('Cupo insuficiente: disponible $ 50.000 en Recaudos de PDV-S2');
     expect(sim.state.counters.TX).toBe(11);
     expect(sim.state.alerts.map((a) => [a.id, a.pdvId])).toEqual([['ALR-S-001', 'PDV-S2']]);
     sim.createBranch('CAD-S1', 'Sucursal Demo Nueva');
     sim.createPdv('SUC-S4', 'Punto de servicios Nuevo');
     sim.createRegister('PDV-S4');
-    sim.createUser('Cajero Demo 05', 'Cajero', ['CJ-S4-01']);
-    sim.login('CJ-S4-01', 'CAJ-S05');
+    sim.createUser('Colocador Demo 05', 'Colocador', ['CJ-S4-01']);
+    sim.login('CJ-S4-01', 'COL-S05');
     expect(catalogForRegister(sim.state, 'CJ-S4-01').find((c) => c.service.id === 'SRV-01')?.noQuota).toBe(true);
     expect(errorOf(recaudoEnel(sim, '4500112100', 98_700))).toBe('PDV sin cupo asignado para Recaudos');
     expect(sim.state.counters.TX).toBe(11);
@@ -545,8 +555,10 @@ describe('Resultado: rechazo, timeout, reintento, anulación y reverso (V06, §3
     const { sim } = setup();
     loginS1(sim);
     okValue(depositoBanco(sim));
-    expect(errorOf(sim.voidTransaction('TX-S-0011', 'Error', null))).toContain('Supervisor');
-    okValue(sim.voidTransaction('TX-S-0011', 'Error', 'SUP-S01'));
+    expect(errorOf(sim.voidTransaction('TX-S-0011', 'Error', null))).toContain('Punto de Venta');
+    // El Punto de Venta de otro PDV no confirma (D-ACT-04).
+    expect(errorOf(sim.voidTransaction('TX-S-0011', 'Error', 'PV-S02'))).toContain('Punto de Venta del PDV');
+    okValue(sim.voidTransaction('TX-S-0011', 'Error', 'PV-S01'));
     expect(tx(sim, 'TX-S-0011').status).toBe('VOIDED');
     expect(expectedCash(sim.state, 'T-S1-01')).toBe(730_200);
   });
@@ -578,7 +590,7 @@ describe('Cierre de caja (V09, R-10)', () => {
     [125_000, 5_000, 'Sobrante'],
   ])('E47/E48: declarar %i en CJ-S3-01', (declared, diff, cls) => {
     const { sim } = setup();
-    sim.login('CJ-S3-01', 'CAJ-S04');
+    sim.login('CJ-S3-01', 'COL-S04');
     const closing = okValue(sim.closeShift('CJ-S3-01', declared, ''));
     expect(closing.expectedByMethod.efectivo).toBe(120_000);
     expect(closing.expectedByMethod.debito).toBe(62_500);
@@ -627,7 +639,7 @@ describe('Conciliación (V10, R-11)', () => {
 
   it('E52 PAR: inconsistencia resuelta con reverso técnico', () => {
     const { sim } = setup('PAR');
-    sim.login('CJ-P1-01', 'CAJ-P01');
+    sim.login('CJ-P1-01', 'COL-P01');
     const rev = okValue(sim.resolveByTechnicalReverse('TX-P-0005'));
     expect([rev.id, rev.reverseKind, rev.status, rev.originalId]).toEqual(['TX-P-0009', 'tecnico', 'APPROVED', 'TX-P-0005']);
     expect(tx(sim, 'TX-P-0005').status).toBe('REVERSED');
@@ -692,11 +704,13 @@ describe('Gestión financiera (V12)', () => {
     ]);
     expect(liquidationTotals(rows)).toEqual({ count: 5, chain: 2_050, it2ex: 1_000, total: 3_050 });
     const liq = okValue(sim.liquidate());
-    expect([liq.id, liq.status]).toEqual(['LIQ-S-001', 'Liquidada (ilustrativa)']);
+    expect([liq.id, liq.status]).toEqual(['LIQ-S-001', 'Pendiente de aprobación']);
     loginS1(sim);
     okValue(recargaMovilUno(sim));
     expect(liquidationTotals(liveLiquidationRows(sim.state)).count).toBe(6);
     expect(sim.state.liquidations[0].totals.count).toBe(5);
+    expect(errorOf(sim.generateCollectionAccount('LIQ-S-001'))).toContain('liquidación aprobada');
+    approve(sim, 'liquidacion', 'LIQ-S-001');
     const ccId = okValue(sim.generateCollectionAccount('LIQ-S-001'));
     const cc = sim.state.collectionAccounts[0];
     expect([ccId, cc.issuer, cc.receiver, cc.total, cc.items[0].quantity]).toEqual([
@@ -733,7 +747,7 @@ describe('Recorrido de referencia SUP, pasos 1–7 (§6.8)', () => {
     okValue(sim.createBranch('CAD-S1', 'Sucursal Demo Nueva'));
     okValue(sim.createPdv('SUC-S4', 'Punto de servicios Nuevo'));
     okValue(sim.createRegister('PDV-S4'));
-    okValue(sim.createUser('Cajero Demo 05', 'Cajero', ['CJ-S4-01']));
+    okValue(sim.createUser('Colocador Demo 05', 'Colocador', ['CJ-S4-01']));
     okValue(sim.createDevice('CJ-S4-01', 'Terminal web'));
     okValue(sim.setEnablement('SRV-06', 'pdv', 'PDV-S4', true));
     okValue(sim.setQuota('PDV-S4', 'Recaudos', 2_000_000));
@@ -742,7 +756,7 @@ describe('Recorrido de referencia SUP, pasos 1–7 (§6.8)', () => {
     expect(catalogForRegister(sim.state, 'CJ-S4-01').some((c) => c.service.id === 'SRV-06')).toBe(true);
     // Paso 3: recaudo.
     clock.advanceMinutes(5);
-    okValue(sim.login('CJ-S4-01', 'CAJ-S05', 100_000));
+    okValue(sim.login('CJ-S4-01', 'COL-S05', 100_000));
     const t11 = okValue(recaudoEnel(sim, '4500112100', 98_700, 100_000));
     expect([t11.id, t11.authorization, t11.change]).toEqual(['TX-S-0011', 'AUT-S-100011', 1_300]);
     // Paso 4: recarga.
@@ -766,6 +780,7 @@ describe('Recorrido de referencia SUP, pasos 1–7 (§6.8)', () => {
     expect(con.id).toBe('CON-S-003');
     okValue(sim.validateConsignment('CON-S-003'));
     const liq = okValue(sim.liquidate());
+    approve(sim, 'liquidacion', liq.id);
     const ccId = okValue(sim.generateCollectionAccount(liq.id));
 
     const s = sim.state;
@@ -833,5 +848,107 @@ describe('R-11: tipos de excepción nombran «Reval (simulado)»', () => {
     const { sim } = setup();
     sim.state.reval.push({ ...sim.state.reval[0], sharedId: 'TX-S-9999', idempotencyKey: 'IDEM-TX-S-9999', status: 'aprobada', inconsistency: null });
     expect(conciliation(sim.state).rows.find((x) => x.id === 'TX-S-9999')?.classification).toBe('Solo en Reval (simulado)');
+  });
+});
+
+describe('Acceso por rol (D-T4, RN-ACC-01 a RN-ACC-08)', () => {
+  it('el login de un Colocador retoma su turno abierto; el de otro perfil no abre caja', () => {
+    const { sim } = setup('SUP');
+    const u = okValue(sim.signIn('COL-S01'));
+    expect(u.profile).toBe('Colocador');
+    expect(sim.state.session).toMatchObject({ registerId: 'CJ-S1-01', shiftId: 'T-S1-01', userId: 'COL-S01' });
+    okValue(sim.signIn('OPE-S01'));
+    expect(sim.state.session.registerId).toBeNull();
+    expect(errorOf(sim.login('CJ-S1-01', 'OPE-S01'))).toContain('Solo un Colocador');
+    sim.signOut();
+    expect(sim.state.auth.userId).toBeNull();
+    expect(sim.state.registers.find((r) => r.id === 'CJ-S1-01')?.currentShiftId).toBe('T-S1-01');
+  });
+
+  it('solo el Operador reversa (RN-ACC-05)', () => {
+    const { sim } = setup('SUP');
+    sim.signIn('COL-S01');
+    expect(errorOf(sim.reverse('TX-S-0006', 'funcional', 'Solicitud del cliente'))).toBe('Solo el Operador reversa una transacción');
+    sim.signIn('FIN-S01');
+    expect(errorOf(sim.reverse('TX-S-0006', 'funcional', 'Solicitud del cliente'))).toBe('Solo el Operador reversa una transacción');
+    sim.signIn('OPE-S01');
+    const rev = okValue(sim.reverse('TX-S-0006', 'funcional', 'Solicitud del cliente'));
+    expect([rev.status, rev.operatorId]).toEqual(['APPROVED', 'OPE-S01']);
+  });
+
+  it('el Asesor crea el PDV con su usuario Punto de Venta, que crea sus cajas y colocadores', () => {
+    const { sim } = setup('SUP');
+    sim.signIn('ASE-S01');
+    const suc = okValue(sim.createBranch('CAD-S1', 'Sucursal Demo Nueva'));
+    const pdv = okValue(sim.createPdv(suc, 'Punto de servicios Demo Nuevo'));
+    expect(pdv).toBe('PDV-S4');
+    const pvUser = sim.state.users.find((u) => u.id === 'PV-S04');
+    expect(pvUser).toMatchObject({ profile: 'Punto de Venta', pdvId: 'PDV-S4' });
+    expect(errorOf(sim.createRegister('PDV-S4'))).toBe('Solo el Punto de Venta crea cajas en su PDV');
+
+    sim.signIn('PV-S04');
+    expect(errorOf(sim.createRegister('PDV-S1'))).toContain('solo crea cajas en su PDV');
+    const caja = okValue(sim.createRegister('PDV-S4'));
+    expect(errorOf(sim.createUser('Intruso', 'Operador', []))).toContain('no crea usuarios Operador');
+    expect(errorOf(sim.createUser('Colocador ajeno', 'Colocador', ['CJ-S1-01']))).toContain('solo crea colocadores de su PDV');
+    expect(okValue(sim.createUser('Colocador Demo 05', 'Colocador', [caja]))).toBe('COL-S05');
+    expect(sim.state.users.find((u) => u.id === 'COL-S05')?.pdvId).toBe('PDV-S4');
+
+    sim.signIn('ADM-S01');
+    expect(errorOf(sim.createUser('Colocador', 'Colocador', []))).toContain('no crea usuarios Colocador');
+    expect(okValue(sim.createUser('Operador Dos', 'Operador', []))).toBe('OPE-S02');
+  });
+
+  it('Finanzas propone y el Aprobador financiero aprueba el ajuste de conciliación (UC-17, UC-18)', () => {
+    const { sim } = setup('SUP');
+    sim.signIn('FIN-S01');
+    okValue(sim.runConciliation());
+    expect(errorOf(sim.registerAdjustment('TX-S-0006', 'Ajuste'))).toBe('El ajuste lo aprueba el Aprobador financiero');
+    expect(errorOf(sim.propose('TX-S-0006', 'ajuste', ' '))).toBe('La nota es obligatoria en los ajustes');
+    const p = okValue(sim.propose('TX-S-0006', 'ajuste', 'Ajuste ilustrativo'));
+    expect([p.id, p.status, p.review.createdBy]).toEqual(['PRO-S-001', 'Pendiente de aprobación', 'FIN-S01']);
+    expect(errorOf(sim.propose('TX-S-0006', 'ajuste', 'Otra'))).toContain('ya tiene una propuesta pendiente');
+    expect(errorOf(sim.review('propuesta', p.id, true))).toBe('Solo el Aprobador financiero aprueba (RN-ACC-06)');
+
+    sim.signIn('APR-S01');
+    okValue(sim.review('propuesta', p.id, true));
+    expect(sim.state.proposals[0]).toMatchObject({ status: 'Aprobada', review: { reviewedBy: 'APR-S01' } });
+    expect(sim.state.resolutions.find((r) => r.txId === 'TX-S-0006')?.resolution).toBe('resuelta con ajuste');
+    expect(errorOf(sim.review('propuesta', p.id, true))).toBe('Solo se revisa lo que está pendiente de aprobación');
+  });
+
+  it('nadie aprueba lo que generó (RN-ACC-06)', () => {
+    const { sim } = setup('SUP');
+    sim.signIn('FIN-S01');
+    const liq = okValue(sim.liquidate());
+    // Un Aprobador que figura como creador no puede aprobar su propio registro.
+    liq.review.createdBy = 'APR-S01';
+    sim.signIn('APR-S01');
+    expect(errorOf(sim.review('liquidacion', liq.id, true))).toBe('Nadie aprueba lo que generó (RN-ACC-06)');
+    expect(errorOf(sim.liquidate())).toBe('Solo Finanzas liquida comisiones');
+  });
+
+  it('el reverso técnico propuesto se ejecuta al aprobarlo', () => {
+    const { sim } = setup('PAR');
+    sim.signIn('FIN-P01');
+    okValue(sim.runConciliation());
+    expect(errorOf(sim.propose('TX-P-0002', 'reverso técnico'))).toContain('No hay una excepción abierta');
+    const p = okValue(sim.propose('TX-P-0005', 'reverso técnico'));
+    sim.signIn('APR-P01');
+    okValue(sim.review('propuesta', p.id, true));
+    expect(tx(sim, 'TX-P-0005').status).toBe('REVERSED');
+    const rev = sim.state.transactions.find((t) => t.originalId === 'TX-P-0005');
+    expect([rev?.reverseKind, rev?.operatorId]).toEqual(['tecnico', 'APR-P01']);
+  });
+});
+
+describe('Red inactiva (FM-27, D-T4)', () => {
+  it('un Colocador no abre ni retoma turno en una caja de una cadena inactiva', () => {
+    const { sim } = setup('SUP');
+    sim.signIn('OPE-S01');
+    okValue(sim.updateChain('CAD-S2', { active: false }));
+    sim.signIn('COL-S04');
+    expect(sim.state.session.registerId).toBeNull();
+    expect(errorOf(sim.login('CJ-S3-01', 'COL-S04'))).toContain('no opera');
   });
 });

@@ -251,13 +251,30 @@ const shift = (ctx: Ctx, register: string, cashier: string, time: string, base: 
   closingId: null,
 });
 
-const user = (id: string, name: string, profile: AppUser['profile'], registerIds: string[] = []): AppUser => ({
+const user = (
+  id: string,
+  name: string,
+  profile: AppUser['profile'],
+  registerIds: string[] = [],
+  pdvId: string | null = null
+): AppUser => ({
   id,
   name,
   profile,
   registerIds,
   active: true,
+  pdvId,
 });
+
+/** Personal de IT2EX: un usuario por rol interno (glosario §1.2). */
+const it2exStaff = (esc: 'S' | 'P'): AppUser[] => [
+  user(`ASE-${esc}01`, `Asesor Demo ${esc}`, 'Asesor de Ventas'),
+  user(`OPE-${esc}01`, `Operador Demo ${esc}`, 'Operador'),
+  user(`FIN-${esc}01`, `Finanzas Demo ${esc}`, 'Finanzas'),
+  user(`APR-${esc}01`, `Aprobador Demo ${esc}`, 'Aprobador financiero'),
+  user(`ADM-${esc}01`, `Administrador Demo ${esc}`, 'Administrador'),
+  user(`SU-${esc}01`, `Super Usuario Demo ${esc}`, 'Super Usuario'),
+];
 
 const device = (id: string, registerId: string, type: Device['type'], serial: string): Device => ({
   id,
@@ -374,12 +391,14 @@ const baseState = (scenario: ScenarioId, day: Date): Omit<
   resolutions: [],
   liquidations: [],
   collectionAccounts: [],
+  proposals: [],
   counters: {
     TX: scenario === 'SUP' ? 11 : 9,
     CIE: 1,
     CON: 3,
     LIQ: 1,
     CC: 1,
+    PRO: 1,
     ALR: 1,
     SUC: 4,
     PDV: 4,
@@ -391,6 +410,7 @@ const baseState = (scenario: ScenarioId, day: Date): Omit<
   presenter: { nextAuthorization: 'gatillo', nextReverse: 'aprobado', idempotency: true },
   compensationMode: 'separado',
   session: { chainId: null, branchId: null, registerId: null, userId: null, shiftId: null },
+  auth: { userId: null },
   lastConciliationAt: null,
   lastResultTxId: null,
 });
@@ -419,16 +439,16 @@ const buildSupermarkets = (clock: Clock): ScenarioState => {
     { 'SUC-S1': 'CAD-S1', 'SUC-S2': 'CAD-S1', 'SUC-S3': 'CAD-S2' }
   );
   const seedTx: SeedTx[] = [
-    { id: 'TX-S-0001', time: '07:05', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'recaudo', serviceId: 'SRV-01', refs: ['4500112001'], value: 145_200, method: 'efectivo', cash: [150_000, 4_800], status: 'APPROVED', commission: [450, 200] },
-    { id: 'TX-S-0002', time: '07:12', register: 'CJ-S3-01', cashier: 'CAJ-S04', type: 'recaudo', serviceId: 'SRV-02', refs: ['7788001'], value: 62_500, method: 'debito', status: 'APPROVED', commission: [400, 200] },
-    { id: 'TX-S-0003', time: '07:20', register: 'CJ-S3-01', cashier: 'CAJ-S04', type: 'recarga', serviceId: 'SRV-10', refs: ['3001234567'], value: 20_000, method: 'efectivo', cash: [20_000, 0], status: 'APPROVED', commission: [400, 200] },
-    { id: 'TX-S-0004', time: '07:31', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'recaudo', serviceId: 'SRV-03', refs: ['5566013'], value: 88_000, method: 'efectivo', cash: [88_000, 0], status: 'REJECTED', gatillo: '013' },
-    { id: 'TX-S-0005', time: '07:40', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'deposito', serviceId: 'SRV-13', refs: ['Ahorros', '1100223344'], value: 300_000, method: 'efectivo', cash: [300_000, 0], status: 'APPROVED', commission: [400, 200] },
-    { id: 'TX-S-0006', time: '07:52', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'recaudo', serviceId: 'SRV-04', refs: ['99001234'], value: 85_000, method: 'efectivo', cash: [85_000, 0], status: 'APPROVED', commission: [400, 200] },
-    { id: 'TX-S-0007', time: '08:05', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'recarga', serviceId: 'SRV-11', refs: ['3109876543'], value: 10_000, method: 'efectivo', cash: [10_000, 0], status: 'VOIDED', commission: [400, 200], finalAt: '08:07', voidReason: 'Número errado' },
-    { id: 'TX-S-0008', time: '08:15', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'recaudo', serviceId: 'SRV-01', refs: ['4500112020'], value: 54_300, method: 'efectivo', cash: [54_300, 0], status: 'REVERSED', commission: [450, 200], finalAt: '08:20', reverseId: 'TX-S-0009' },
-    { id: 'TX-S-0009', time: '08:20', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'reverso', serviceId: 'SRV-01', refs: ['4500112020'], value: 54_300, method: 'efectivo', status: 'APPROVED', originalId: 'TX-S-0008', reverseReason: 'Solicitud del cliente' },
-    { id: 'TX-S-0010', time: '08:30', register: 'CJ-S1-01', cashier: 'CAJ-S01', type: 'recaudo', serviceId: 'SRV-07', refs: ['3300408'], value: 120_000, method: 'efectivo', cash: [120_000, 0], status: 'PENDING_VERIFICATION', gatillo: '408' },
+    { id: 'TX-S-0001', time: '07:05', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'recaudo', serviceId: 'SRV-01', refs: ['4500112001'], value: 145_200, method: 'efectivo', cash: [150_000, 4_800], status: 'APPROVED', commission: [450, 200] },
+    { id: 'TX-S-0002', time: '07:12', register: 'CJ-S3-01', cashier: 'COL-S04', type: 'recaudo', serviceId: 'SRV-02', refs: ['7788001'], value: 62_500, method: 'debito', status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-S-0003', time: '07:20', register: 'CJ-S3-01', cashier: 'COL-S04', type: 'recarga', serviceId: 'SRV-10', refs: ['3001234567'], value: 20_000, method: 'efectivo', cash: [20_000, 0], status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-S-0004', time: '07:31', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'recaudo', serviceId: 'SRV-03', refs: ['5566013'], value: 88_000, method: 'efectivo', cash: [88_000, 0], status: 'REJECTED', gatillo: '013' },
+    { id: 'TX-S-0005', time: '07:40', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'deposito', serviceId: 'SRV-13', refs: ['Ahorros', '1100223344'], value: 300_000, method: 'efectivo', cash: [300_000, 0], status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-S-0006', time: '07:52', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'recaudo', serviceId: 'SRV-04', refs: ['99001234'], value: 85_000, method: 'efectivo', cash: [85_000, 0], status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-S-0007', time: '08:05', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'recarga', serviceId: 'SRV-11', refs: ['3109876543'], value: 10_000, method: 'efectivo', cash: [10_000, 0], status: 'VOIDED', commission: [400, 200], finalAt: '08:07', voidReason: 'Número errado' },
+    { id: 'TX-S-0008', time: '08:15', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'recaudo', serviceId: 'SRV-01', refs: ['4500112020'], value: 54_300, method: 'efectivo', cash: [54_300, 0], status: 'REVERSED', commission: [450, 200], finalAt: '08:20', reverseId: 'TX-S-0009' },
+    { id: 'TX-S-0009', time: '08:20', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'reverso', serviceId: 'SRV-01', refs: ['4500112020'], value: 54_300, method: 'efectivo', status: 'APPROVED', originalId: 'TX-S-0008', reverseReason: 'Solicitud del cliente' },
+    { id: 'TX-S-0010', time: '08:30', register: 'CJ-S1-01', cashier: 'COL-S01', type: 'recaudo', serviceId: 'SRV-07', refs: ['3300408'], value: 120_000, method: 'efectivo', cash: [120_000, 0], status: 'PENDING_VERIFICATION', gatillo: '408' },
   ];
   const transactions = seedTx.map((s) => buildTx(ctx, s));
   const revalStatus: Record<string, RevalRecord['status']> = {
@@ -462,19 +482,20 @@ const buildSupermarkets = (clock: Clock): ScenarioState => {
       { id: 'CJ-S3-01', pdvId: 'PDV-S3', currentShiftId: 'T-S3-01' },
     ],
     users: [
-      user('CAJ-S01', 'Cajero Demo 01', 'Cajero', ['CJ-S1-01']),
-      user('CAJ-S02', 'Cajero Demo 02', 'Cajero', ['CJ-S1-02']),
-      user('CAJ-S03', 'Cajero Demo 03', 'Cajero', ['CJ-S2-01']),
-      user('CAJ-S04', 'Cajero Demo 04', 'Cajero', ['CJ-S3-01']),
-      user('SUP-S01', 'Supervisor Demo S', 'Supervisor'),
-      user('ADM-S01', 'Administrador Demo S', 'Administrador'),
-      user('ANA-S01', 'Analista Demo S', 'Analista financiero'),
+      user('COL-S01', 'Colocador Demo 01', 'Colocador', ['CJ-S1-01'], 'PDV-S1'),
+      user('COL-S02', 'Colocador Demo 02', 'Colocador', ['CJ-S1-02'], 'PDV-S1'),
+      user('COL-S03', 'Colocador Demo 03', 'Colocador', ['CJ-S2-01'], 'PDV-S2'),
+      user('COL-S04', 'Colocador Demo 04', 'Colocador', ['CJ-S3-01'], 'PDV-S3'),
+      user('PV-S01', 'PDV Norte Demo', 'Punto de Venta', [], 'PDV-S1'),
+      user('PV-S02', 'PDV Sur Demo', 'Punto de Venta', [], 'PDV-S2'),
+      user('PV-S03', 'PDV Centro Demo', 'Punto de Venta', [], 'PDV-S3'),
+      ...it2exStaff('S'),
     ],
     shifts: [
-      shift(ctx, 'CJ-S1-01', 'CAJ-S01', '07:00', 200_000),
-      shift(ctx, 'CJ-S1-02', 'CAJ-S02', '07:00', 200_000),
-      shift(ctx, 'CJ-S2-01', 'CAJ-S03', '07:00', 100_000),
-      shift(ctx, 'CJ-S3-01', 'CAJ-S04', '07:00', 100_000),
+      shift(ctx, 'CJ-S1-01', 'COL-S01', '07:00', 200_000),
+      shift(ctx, 'CJ-S1-02', 'COL-S02', '07:00', 200_000),
+      shift(ctx, 'CJ-S2-01', 'COL-S03', '07:00', 100_000),
+      shift(ctx, 'CJ-S3-01', 'COL-S04', '07:00', 100_000),
     ],
     devices: [
       device('DSP-S1-01', 'CJ-S1-01', 'Terminal web', 'SIM-S-0001'),
@@ -518,7 +539,7 @@ const buildSupermarkets = (clock: Clock): ScenarioState => {
     transactions,
     authAttempts: transactions.map(attemptFor),
     reval: revalRecords,
-    closings: [historicalClosing(ctx, 'CIE-S-000', 'CJ-S1-02', 'CAJ-S02', 640_000, 635_000)],
+    closings: [historicalClosing(ctx, 'CIE-S-000', 'CJ-S1-02', 'COL-S02', 640_000, 635_000)],
     consignments: [
       consignment(ctx, 'CON-S-001', 'PDV-S1', 'Recaudos', 500_000, 'CNS-0001', 'Validada', '06:30'),
       consignment(ctx, 'CON-S-002', 'PDV-S1', 'Recaudos', 300_000, 'CNS-0002', 'Reportada', '08:40'),
@@ -541,14 +562,14 @@ const buildParkings = (clock: Clock): ScenarioState => {
     { 'SUC-P1': 'CAD-P1', 'SUC-P2': 'CAD-P1', 'SUC-P3': 'CAD-P2' }
   );
   const seedTx: SeedTx[] = [
-    { id: 'TX-P-0001', time: '06:40', register: 'CJ-P1-01', cashier: 'CAJ-P01', type: 'recarga', serviceId: 'SRV-12', refs: ['8800112233'], value: 50_000, method: 'efectivo', cash: [50_000, 0], status: 'APPROVED', commission: [300, 150] },
-    { id: 'TX-P-0002', time: '06:55', register: 'CJ-P1-01', cashier: 'CAJ-P01', type: 'recaudo', serviceId: 'SRV-09', refs: ['2026110001'], value: 180_000, method: 'credito', status: 'APPROVED', commission: [400, 200] },
-    { id: 'TX-P-0003', time: '07:10', register: 'CJ-P3-01', cashier: 'CAJ-P04', type: 'recarga', serviceId: 'SRV-10', refs: ['3015550101'], value: 10_000, method: 'efectivo', cash: [10_000, 0], status: 'APPROVED', commission: [400, 200] },
-    { id: 'TX-P-0004', time: '07:25', register: 'CJ-P1-01', cashier: 'CAJ-P01', type: 'recaudo', serviceId: 'SRV-01', refs: ['4500220013'], value: 97_400, method: 'efectivo', cash: [97_400, 0], status: 'REJECTED', gatillo: '013' },
-    { id: 'TX-P-0005', time: '07:40', register: 'CJ-P1-01', cashier: 'CAJ-P01', type: 'recaudo', serviceId: 'SRV-09', refs: ['2026110002'], value: 95_000, method: 'efectivo', cash: [95_000, 0], status: 'APPROVED', commission: [400, 200] },
-    { id: 'TX-P-0006', time: '07:58', register: 'CJ-P1-01', cashier: 'CAJ-P01', type: 'recarga', serviceId: 'SRV-12', refs: ['8800445566'], value: 30_000, method: 'efectivo', cash: [30_000, 0], status: 'REVERSED', commission: [300, 150], finalAt: '08:01', reverseId: 'TX-P-0007' },
-    { id: 'TX-P-0007', time: '08:01', register: 'CJ-P1-01', cashier: 'CAJ-P01', type: 'reverso', serviceId: 'SRV-12', refs: ['8800445566'], value: 30_000, method: 'efectivo', status: 'APPROVED', originalId: 'TX-P-0006', reverseReason: 'Solicitud del cliente' },
-    { id: 'TX-P-0008', time: '08:10', register: 'CJ-P1-01', cashier: 'CAJ-P01', type: 'deposito', serviceId: 'SRV-13', refs: ['Ahorros', '1100998877'], value: 150_000, method: 'efectivo', cash: [150_000, 0], status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-P-0001', time: '06:40', register: 'CJ-P1-01', cashier: 'COL-P01', type: 'recarga', serviceId: 'SRV-12', refs: ['8800112233'], value: 50_000, method: 'efectivo', cash: [50_000, 0], status: 'APPROVED', commission: [300, 150] },
+    { id: 'TX-P-0002', time: '06:55', register: 'CJ-P1-01', cashier: 'COL-P01', type: 'recaudo', serviceId: 'SRV-09', refs: ['2026110001'], value: 180_000, method: 'credito', status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-P-0003', time: '07:10', register: 'CJ-P3-01', cashier: 'COL-P04', type: 'recarga', serviceId: 'SRV-10', refs: ['3015550101'], value: 10_000, method: 'efectivo', cash: [10_000, 0], status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-P-0004', time: '07:25', register: 'CJ-P1-01', cashier: 'COL-P01', type: 'recaudo', serviceId: 'SRV-01', refs: ['4500220013'], value: 97_400, method: 'efectivo', cash: [97_400, 0], status: 'REJECTED', gatillo: '013' },
+    { id: 'TX-P-0005', time: '07:40', register: 'CJ-P1-01', cashier: 'COL-P01', type: 'recaudo', serviceId: 'SRV-09', refs: ['2026110002'], value: 95_000, method: 'efectivo', cash: [95_000, 0], status: 'APPROVED', commission: [400, 200] },
+    { id: 'TX-P-0006', time: '07:58', register: 'CJ-P1-01', cashier: 'COL-P01', type: 'recarga', serviceId: 'SRV-12', refs: ['8800445566'], value: 30_000, method: 'efectivo', cash: [30_000, 0], status: 'REVERSED', commission: [300, 150], finalAt: '08:01', reverseId: 'TX-P-0007' },
+    { id: 'TX-P-0007', time: '08:01', register: 'CJ-P1-01', cashier: 'COL-P01', type: 'reverso', serviceId: 'SRV-12', refs: ['8800445566'], value: 30_000, method: 'efectivo', status: 'APPROVED', originalId: 'TX-P-0006', reverseReason: 'Solicitud del cliente' },
+    { id: 'TX-P-0008', time: '08:10', register: 'CJ-P1-01', cashier: 'COL-P01', type: 'deposito', serviceId: 'SRV-13', refs: ['Ahorros', '1100998877'], value: 150_000, method: 'efectivo', cash: [150_000, 0], status: 'APPROVED', commission: [400, 200] },
   ];
   const transactions = seedTx.map((s) => buildTx(ctx, s));
   const revalStatus: Record<string, RevalRecord['status']> = {
@@ -578,19 +599,20 @@ const buildParkings = (clock: Clock): ScenarioState => {
       { id: 'CJ-P3-01', pdvId: 'PDV-P3', currentShiftId: 'T-P3-01' },
     ],
     users: [
-      user('CAJ-P01', 'Cajero Demo P01', 'Cajero', ['CJ-P1-01']),
-      user('CAJ-P02', 'Cajero Demo P02', 'Cajero', ['CJ-P1-02']),
-      user('CAJ-P03', 'Cajero Demo P03', 'Cajero', ['CJ-P2-01']),
-      user('CAJ-P04', 'Cajero Demo P04', 'Cajero', ['CJ-P3-01']),
-      user('SUP-P01', 'Supervisor Demo P', 'Supervisor'),
-      user('ADM-P01', 'Administrador Demo P', 'Administrador'),
-      user('ANA-P01', 'Analista Demo P', 'Analista financiero'),
+      user('COL-P01', 'Colocador Demo P01', 'Colocador', ['CJ-P1-01'], 'PDV-P1'),
+      user('COL-P02', 'Colocador Demo P02', 'Colocador', ['CJ-P1-02'], 'PDV-P1'),
+      user('COL-P03', 'Colocador Demo P03', 'Colocador', ['CJ-P2-01'], 'PDV-P2'),
+      user('COL-P04', 'Colocador Demo P04', 'Colocador', ['CJ-P3-01'], 'PDV-P3'),
+      user('PV-P01', 'PDV Aeropuerto Demo', 'Punto de Venta', [], 'PDV-P1'),
+      user('PV-P02', 'PDV Centro Demo P', 'Punto de Venta', [], 'PDV-P2'),
+      user('PV-P03', 'PDV Terminal Demo', 'Punto de Venta', [], 'PDV-P3'),
+      ...it2exStaff('P'),
     ],
     shifts: [
-      shift(ctx, 'CJ-P1-01', 'CAJ-P01', '06:30', 150_000),
-      shift(ctx, 'CJ-P1-02', 'CAJ-P02', '06:30', 150_000),
-      shift(ctx, 'CJ-P2-01', 'CAJ-P03', '06:30', 100_000),
-      shift(ctx, 'CJ-P3-01', 'CAJ-P04', '06:30', 100_000),
+      shift(ctx, 'CJ-P1-01', 'COL-P01', '06:30', 150_000),
+      shift(ctx, 'CJ-P1-02', 'COL-P02', '06:30', 150_000),
+      shift(ctx, 'CJ-P2-01', 'COL-P03', '06:30', 100_000),
+      shift(ctx, 'CJ-P3-01', 'COL-P04', '06:30', 100_000),
     ],
     devices: [
       device('DSP-P1-01', 'CJ-P1-01', 'Terminal web', 'SIM-P-0001'),
@@ -633,7 +655,7 @@ const buildParkings = (clock: Clock): ScenarioState => {
         t.id === 'TX-P-0005' ? 'Referencia no corresponde al convenio (simulado)' : null
       )
     ),
-    closings: [historicalClosing(ctx, 'CIE-P-000', 'CJ-P1-01', 'CAJ-P01', 380_000, 382_000)],
+    closings: [historicalClosing(ctx, 'CIE-P-000', 'CJ-P1-01', 'COL-P01', 380_000, 382_000)],
     consignments: [
       consignment(ctx, 'CON-P-001', 'PDV-P1', 'Recaudos', 200_000, 'CNS-0001', 'Validada', '06:20'),
       consignment(ctx, 'CON-P-002', 'PDV-P1', 'Recargas', 100_000, 'CNS-0002', 'Reportada', '08:30'),

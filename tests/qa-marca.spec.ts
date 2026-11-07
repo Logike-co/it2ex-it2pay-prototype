@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { ingresarComo, limpio } from './sesion';
 
 /**
  * Identidad visual de IT2Pay (marca del portal transaccional) y encabezado limpio:
@@ -15,9 +16,8 @@ const DEMO_CONTROLS = [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await limpio(page);
+  await ingresarComo(page, 'OPE-S01');
 });
 
 test('la barra superior está limpia: sin controles de demo fuera de la guía', async ({ page }) => {
@@ -27,7 +27,9 @@ test('la barra superior está limpia: sin controles de demo fuera de la guía', 
   await expect(bar.getByTestId('logotipo')).toBeVisible();
   await expect(bar.getByTestId('sesion-encabezado')).toBeVisible();
   await expect(bar.getByTestId('btn-guia-demo')).toBeVisible();
-  await expect(bar.locator('button, select, input')).toHaveCount(2);
+  // ☰, «Cerrar sesión» y el botón de la guía.
+  await expect(bar.getByTestId('btn-cerrar-sesion')).toBeVisible();
+  await expect(bar.locator('button, select, input')).toHaveCount(3);
 
   for (const id of DEMO_CONTROLS) {
     await expect(page.getByTestId(id)).toHaveCount(0);
@@ -42,8 +44,12 @@ test('la barra superior está limpia: sin controles de demo fuera de la guía', 
   await expect(guide.getByTestId('panel-presentador')).toBeVisible();
 });
 
-test('el botón ☰ oculta y muestra el menú de vistas', async ({ page }) => {
+test('el menú arranca oculto tras el login y el botón ☰ lo muestra y lo oculta', async ({ page }) => {
   const menuBtn = page.getByTestId('btn-menu');
+  await expect(page.getByTestId('menu')).toBeHidden();
+  await expect(menuBtn).toHaveAttribute('aria-expanded', 'false');
+
+  await menuBtn.click();
   await expect(page.getByTestId('menu')).toBeVisible();
   await expect(menuBtn).toHaveAttribute('aria-expanded', 'true');
 

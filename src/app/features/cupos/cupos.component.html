@@ -14,6 +14,7 @@
             <td>{{ chainOf(r.pdvId) }}</td>
             <td>{{ r.line }}</td>
             <td class="num">
+              @if (editable()) {
               <div class="flex items-center justify-end gap-1">
                 <input
                   class="input w-32 text-right"
@@ -24,6 +25,9 @@
                 />
                 <button type="button" class="btn" [attr.data-testid]="'guardar-' + r.pdvId + '-' + r.line" (click)="save(r.pdvId, r.line, r.assigned)">Guardar</button>
               </div>
+              } @else {
+                <span [attr.data-testid]="'asignado-' + r.pdvId + '-' + r.line">{{ r.assigned | money }}</span>
+              }
             </td>
             <td class="num" data-testid="utilizado">{{ r.used | money }}</td>
             <td class="num" data-testid="en-verificacion">{{ r.inVerification | money }}</td>
@@ -49,9 +53,11 @@ disponible = asignado − utilizado − en verificación
 alerta «Cupo bajo» si disponible &lt; 20 % del asignado</app-illustrative>
 </section>
 
+@if (!myPdv()) {
 <div class="grid gap-4 @5xl:grid-cols-2">
   <section class="card" data-testid="definir-cupo">
-    <h2 class="card-title">Definir cupo (B08) <app-legend /> <app-trace-badge [items]="['B08']" /></h2>
+    <h2 class="card-title">{{ editable() ? "Definir cupo" : "Consolidado de cupos" }} (B08) <app-legend /> <app-trace-badge [items]="['B08']" /></h2>
+    @if (editable()) {
     <div class="grid gap-2 @3xl:grid-cols-4">
       <select class="input" data-testid="nuevo-cupo-pdv" [(ngModel)]="newPdv">
         <option value="">— PDV —</option>
@@ -67,6 +73,7 @@ alerta «Cupo bajo» si disponible &lt; 20 % del asignado</app-illustrative>
       <input class="input" type="number" data-testid="nuevo-cupo-valor" [(ngModel)]="newAssigned" />
       <button type="button" class="btn btn-primary" data-testid="btn-definir-cupo" (click)="define()">Definir cupo</button>
     </div>
+    }
     <h3 class="mt-4 mb-1 text-sm font-semibold">Consolidado por cadena</h3>
     <div class="overflow-x-auto"><table class="table">
       <thead><tr><th>Cadena</th><th class="num">Asignado</th><th class="num">Utilizado</th><th class="num">En verificación</th><th class="num">Disponible</th></tr></thead>
@@ -96,3 +103,4 @@ alerta «Cupo bajo» si disponible &lt; 20 % del asignado</app-illustrative>
     }
   </section>
 </div>
+}

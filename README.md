@@ -6,6 +6,7 @@ Aplicación web de demostración que simula, de punta a punta, la operación de 
 
 ## Qué incluye
 
+- **Login y acceso por rol**: pantalla de ingreso con usuarios ficticios precargados de los 8 perfiles de IT2Pay; cada perfil ve solo sus opciones (ver «Usuarios y roles»).
 - **12 vistas** con sus rutas: `/inicio`, `/dashboard`, `/red`, `/convenios`, `/caja`, `/caja/resultado`, `/transacciones`, `/cupos`, `/cierre`, `/conciliacion`, `/compensacion` y `/finanzas`.
 - **Dos escenarios** de referencia sobre el mismo motor: Supermercados y Parqueaderos, con datos iniciales deterministas.
 - **Motor de simulación** en TypeScript puro (`src/app/core/simulation/`): máquina de estados de la transacción (aprobación, rechazo, timeout, consulta, reintento con la misma clave idempotente, anulación y reverso), cupos por PDV y línea de negocio, cierre de caja, conciliación con sus tres tipos de excepción, compensación, comisiones, liquidación, cartera y cuenta de cobro de ejemplo.
@@ -13,7 +14,7 @@ Aplicación web de demostración que simula, de punta a punta, la operación de 
 - **Terminal de caja operable por teclado**: `F1` nueva operación · `F2` buscar convenio · `Enter` avanzar · `F12` autorizar · `F8` imprimir comprobante · `Esc` volver o cancelar.
 - **Panel del presentador** (sección plegable de la guía de demo): fuerza el desenlace de la próxima autorización o del próximo reverso y activa o desactiva la idempotencia del autorizador ficticio.
 - **Identidad visual de IT2Pay**: azul institucional, degradado aqua, logo y tipografía Nunito del portal transaccional IT2Pay, con una barra superior limpia (☰, logo, sesión y botón de la guía).
-- **Modo presentador**: guía de demo en pantalla que concentra todos los controles de la demo, escenarios precargados ESC-01..03, reinicio en 1 clic y trazabilidad de cada vista con sus historias de usuario y requerimientos (ver «Modo presentador»).
+- **Modo presentador**: guía de demo en pantalla que concentra todos los controles de la demo, escenarios precargados ESC-01..03 con el usuario de cada paso («Ingresar como…»), reinicio en 1 clic y trazabilidad de cada vista con sus historias de usuario y requerimientos (ver «Modo presentador»).
 
 ## Requisitos
 
@@ -48,13 +49,29 @@ npx playwright install chromium
 
 `npm run e2e` levanta el servidor de desarrollo por su cuenta (o reutiliza uno que ya esté corriendo en el puerto 4200).
 
+## Usuarios y roles
+
+Se entra por `/login`: al elegir un usuario la contraseña se llena sola (no se valida). Cada perfil ve en el menú solo sus opciones; una URL de otra opción lleva a su inicio con un aviso. El menú lateral arranca oculto después de cada login y se abre con ☰. La matriz completa y los diagramas de casos de uso están en «Roles y accesos» (Administrador y Super Usuario) y en la guía de demo («Matriz de roles y casos de uso»). La matriz vive en `src/app/core/access/access.ts`.
+
+| Perfil | Usuarios demo (Supermercados · Parqueaderos) | Qué hace en el demo |
+| :--- | :--- | :--- |
+| Colocador (cajero) | `COL-S01`…`COL-S04` · `COL-P01`…`COL-P04` | Abre su turno, opera la caja, anula en su turno y cierra su caja; ve sus movimientos |
+| Punto de Venta | `PV-S01`…`PV-S03` · `PV-P01`…`PV-P03` (uno por PDV) | Solo ve su PDV: crea cajas y colocadores, confirma la anulación de depósitos, consulta cupo y arqueo |
+| Asesor de Ventas | `ASE-S01` · `ASE-P01` | Crea cadenas, sucursales y PDV (cada PDV nuevo crea su usuario Punto de Venta) |
+| Operador | `OPE-S01` · `OPE-P01` | Ajusta cupos, activa e inactiva PDV y es el único que reversa |
+| Finanzas | `FIN-S01` · `FIN-P01` | Concilia y propone ajustes, registra consignaciones, liquida y genera la cuenta de cobro |
+| Aprobador financiero | `APR-S01` · `APR-P01` | Aprueba ajustes, liquidaciones y cuentas de cobro; nadie aprueba lo que generó |
+| Administrador | `ADM-S01` · `ADM-P01` | Crea usuarios internos; consulta «Roles y accesos» |
+| Super Usuario | `SU-S01` · `SU-P01` | Parametriza convenios, habilitaciones y comisiones |
+
 ## Modo presentador
 
 | Control | Cómo se usa | Qué hace |
 | :--- | :--- | :--- |
 | Guía de demo | Botón «Guía de demo» de la barra superior o `Ctrl+Shift+D` | Panel acoplado a la derecha que reúne todos los controles de la demo, para que la pantalla quede limpia con el paso actual del guion: qué hacer, qué contar y la checklist de lo que debe verse. Sigue a la pantalla: al cambiar de vista desde el menú pasa al paso del guion que la usa. Permite ir a cualquier paso o vista |
 | Escenario | Lista «Escenario» arriba en la guía | Cambia entre Supermercados y Parqueaderos sin borrar datos |
-| Escenarios precargados | Botones ESC-01, ESC-02 y ESC-03 en la guía | Reinician los datos de su escenario, fijan el panel del presentador y abren su guion: camino feliz (Supermercados), excepciones y discrepancias (Parqueaderos) y rechazo (Supermercados) |
+| Ingresar como… | Botón del paso en la guía | Cada paso del guion indica con qué usuario se hace; el botón cierra la sesión actual y entra con ese usuario en un clic |
+| Escenarios precargados | Botones ESC-01, ESC-02 y ESC-03 en la guía | Reinician los datos de su escenario, entran con el usuario del primer paso, fijan el panel del presentador y abren su guion: camino feliz (Supermercados), excepciones y discrepancias (Parqueaderos) y rechazo (Supermercados) |
 | Reinicio en 1 clic | `Ctrl+Shift+R` | Restaura el escenario activo sin diálogo de confirmación y vuelve al primer paso del guion |
 | Panel del presentador | Sección plegable «Panel del presentador» de la guía | Fuerza el desenlace de la próxima autorización o del próximo reverso, activa o desactiva la idempotencia y muestra los gatillos y el último desenlace |
 | Trazabilidad | Casilla «Trazabilidad» al pie de la guía | Muestra encima de cada vista y en los títulos de sus tarjetas la historia de usuario y el requerimiento que valida (`US-09 · RF-09`), con sus escenarios BDD. No sale en la impresión |
@@ -86,8 +103,9 @@ Cualquier otra terminación se aprueba. El panel del presentador puede forzar el
 ## Limitaciones
 
 - **Sin backend**: no hay servidor, base de datos ni llamadas a servicios reales. El estado vive en el navegador de quien presenta.
-- **Datos ficticios**: convenios, operadores, bancos, cadenas, cajeros y titulares son inventados. El catálogo es una propuesta.
+- **Datos ficticios**: convenios, operadores, bancos, cadenas, usuarios y titulares son inventados. El catálogo es una propuesta.
 - **Reglas ilustrativas**: las fórmulas de cupo, cierre, conciliación, compensación, comisiones, cartera y facturación están rotuladas «Ilustrativo — sujeto a validación del responsable funcional» y no representan reglas contractuales.
+- El login es simulado: no hay contraseñas reales, MFA ni OTP. La administración granular de roles y permisos queda fuera del demo.
 - No hay cifrado, autenticación real, impuestos, facturación electrónica ni integración contable.
 
 ## Identidad visual

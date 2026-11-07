@@ -39,11 +39,30 @@ export const PAYMENT_METHODS: readonly PaymentMethod[] = [
   'qr',
 ];
 
+/**
+ * Los 8 roles de IT2Pay (glosario §1.2 de la Fase D re-ejecutada, D-ACT-01 a D-ACT-04).
+ * «Cajero» es sinónimo de Colocador; el «Supervisor» lo cubre el Punto de Venta.
+ */
 export type ProfileName =
-  | 'Cajero'
-  | 'Supervisor'
+  | 'Colocador'
+  | 'Punto de Venta'
+  | 'Asesor de Ventas'
+  | 'Operador'
+  | 'Finanzas'
+  | 'Aprobador financiero'
   | 'Administrador'
-  | 'Analista financiero';
+  | 'Super Usuario';
+
+export const PROFILES: readonly ProfileName[] = [
+  'Colocador',
+  'Punto de Venta',
+  'Asesor de Ventas',
+  'Operador',
+  'Finanzas',
+  'Aprobador financiero',
+  'Administrador',
+  'Super Usuario',
+];
 
 export interface Chain {
   id: string;
@@ -79,6 +98,8 @@ export interface AppUser {
   profile: ProfileName;
   registerIds: string[];
   active: boolean;
+  /** PDV al que pertenece (Colocador y Punto de Venta, RN-ACC-04); null para el personal de IT2EX. */
+  pdvId: string | null;
 }
 
 export interface Shift {
@@ -345,7 +366,28 @@ export interface Liquidation {
   at: string;
   rows: LiquidationRow[];
   totals: { count: number; chain: number; it2ex: number; total: number };
-  status: 'Liquidada (ilustrativa)';
+  status: ApprovalStatus;
+  review: Review;
+}
+
+/** Segregación de funciones (RN-ACC-06): Finanzas genera, el Aprobador financiero aprueba. */
+export type ApprovalStatus = 'Pendiente de aprobación' | 'Aprobada' | 'Rechazada';
+
+export interface Review {
+  createdBy: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+}
+
+/** Propuesta de Finanzas para resolver una excepción de conciliación (UC-17), que aprueba el Aprobador (UC-18). */
+export interface ConciliationProposal {
+  id: string;
+  txId: string;
+  kind: 'reverso técnico' | 'ajuste';
+  note: string | null;
+  at: string;
+  status: ApprovalStatus;
+  review: Review;
 }
 
 export interface CollectionAccount {
@@ -357,6 +399,8 @@ export interface CollectionAccount {
   at: string;
   items: { concept: string; quantity: number; value: number }[];
   total: number;
+  status: ApprovalStatus;
+  review: Review;
 }
 
 export type PortfolioAging = 'Periodo demo' | '1–30 días' | '31–60 días';
@@ -376,6 +420,7 @@ export interface Counters {
   CON: number;
   LIQ: number;
   CC: number;
+  PRO: number;
   ALR: number;
   SUC: number;
   PDV: number;
@@ -416,6 +461,11 @@ export interface Session {
   shiftId: string | null;
 }
 
+/** Usuario autenticado en el login (separado del turno de caja). */
+export interface Auth {
+  userId: string | null;
+}
+
 export interface ScenarioState {
   schemaVersion: number;
   id: ScenarioId;
@@ -443,11 +493,13 @@ export interface ScenarioState {
   consignments: Consignment[];
   liquidations: Liquidation[];
   collectionAccounts: CollectionAccount[];
+  proposals: ConciliationProposal[];
   portfolio: PortfolioBalance[];
   counters: Counters;
   presenter: PresenterPanel;
   compensationMode: CompensationMode;
   session: Session;
+  auth: Auth;
   lastConciliationAt: string | null;
   lastResultTxId: string | null;
 }
@@ -458,6 +510,7 @@ export type Result<T> =
 
 /**
  * Versión del estado persistido. v2: tipos de excepción renombrados a
- * «… Reval (simulado)»; un estado guardado con otra versión se descarta.
+ * «… Reval (simulado)». v3: 8 roles, login y aprobaciones (D-T4).
+ * Un estado guardado con otra versión se descarta.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;

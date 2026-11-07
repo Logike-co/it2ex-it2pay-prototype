@@ -1,7 +1,8 @@
 import { computed, inject, Injectable, InjectionToken, signal } from '@angular/core';
 import { Clock, SystemClock } from '../simulation/clock';
 import { Simulator } from '../simulation/engine';
-import { Result, ScenarioId, ScenarioState, SCHEMA_VERSION, TxStatus } from '../simulation/model';
+import { AccessAction, AccessView, can, canView } from '../access/access';
+import { AppUser, Result, ScenarioId, ScenarioState, SCHEMA_VERSION, TxStatus } from '../simulation/model';
 import { buildSeed } from '../simulation/seed';
 
 /** Reloj de la demo (FM-19). Las pruebas lo sustituyen por un `FixedClock`. */
@@ -58,6 +59,21 @@ export class SimulatorStore {
 
   readonly state = computed(() => this.states[this.activeScenario()]());
 
+  /** Usuario autenticado en el escenario activo (null = pantalla de login). */
+  readonly currentUser = computed<AppUser | null>(() => {
+    const s = this.state();
+    return s.users.find((u) => u.id === s.auth.userId) ?? null;
+  });
+  readonly role = computed(() => this.currentUser()?.profile ?? null);
+
+  can(action: AccessAction): boolean {
+    return can(this.role(), action);
+  }
+
+  canView(view: AccessView): boolean {
+    return canView(this.role(), view);
+  }
+
   /** Estado de cualquier escenario (solo lectura), p. ej. para las tarjetas de V01. */
   stateOf(id: ScenarioId): ScenarioState {
     return this.states[id]();
@@ -101,15 +117,27 @@ export class SimulatorStore {
 
   /** «Reiniciar escenario» (R-18): restaura exactamente §6.9 en el escenario activo. */
   resetScenario(id: ScenarioId = this.activeScenario()): void {
-    this.commit(buildSeed(id, this.clock), id);
+    this.commit(this.reseed(id), id);
     this.flash.set({ kind: 'ok', text: `Escenario reiniciado: datos iniciales de demostración restaurados` });
   }
 
   /** «Reiniciar todo»: restaura los dos escenarios. */
   resetAll(): void {
-    this.commit(buildSeed('SUP', this.clock), 'SUP');
-    this.commit(buildSeed('PAR', this.clock), 'PAR');
+    this.commit(this.reseed('SUP'), 'SUP');
+    this.commit(this.reseed('PAR'), 'PAR');
     this.flash.set({ kind: 'ok', text: 'Los dos escenarios fueron reiniciados' });
+  }
+
+  /** Semilla del escenario; el usuario autenticado sigue con su sesión si existe en la semilla. */
+  private reseed(id: ScenarioId): ScenarioState {
+    const seed = buildSeed(id, this.clock);
+    const userId = this.states[id]().auth.userId;
+    if (userId && seed.users.some((u) => u.id === userId)) {
+      const sim = new Simulator(seed, this.clock);
+      sim.signIn(userId);
+      return sim.state;
+    }
+    return seed;
   }
 
   wait(ms: number): Promise<void> {

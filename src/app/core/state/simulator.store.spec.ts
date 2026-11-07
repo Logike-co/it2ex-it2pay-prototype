@@ -43,7 +43,7 @@ describe('SimulatorStore (persistencia y reinicio, R-18 / FM-24)', () => {
     store.selectScenario('SUP');
     store.run((sim) => sim.createBranch('CAD-S1', 'Sucursal Demo Nueva'));
     store.run((sim) => sim.createPdv('SUC-S4', 'Punto de servicios Nuevo'));
-    store.run((sim) => sim.login('CJ-S1-01', 'CAJ-S01'));
+    store.run((sim) => sim.login('CJ-S1-01', 'COL-S01'));
     const tx = store.run((sim) =>
       sim.authorize({ serviceId: 'SRV-01', references: ['4500112100'], value: 98_700, method: 'efectivo', cashReceived: 100_000 })
     );

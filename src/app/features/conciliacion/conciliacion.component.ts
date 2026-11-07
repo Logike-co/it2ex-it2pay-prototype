@@ -20,6 +20,18 @@ export class ConciliacionComponent {
   readonly statusLabels = STATUS_LABELS;
 
   readonly result = computed(() => conciliation(this.state()));
+  /** RN-ACC-06: Finanzas concilia y propone; el Aprobador financiero aprueba o rechaza. */
+  readonly canOperate = computed(() => this.store.can('conciliacion.operar'));
+  readonly canApprove = computed(() => this.store.can('finanzas.aprobar'));
+  readonly proposals = computed(() => [...this.state().proposals].reverse());
+
+  pendingFor(txId: string) {
+    return this.state().proposals.find((p) => p.txId === txId && p.status === 'Pendiente de aprobación') ?? null;
+  }
+
+  userOf(id: string | null): string {
+    return id ? (this.state().users.find((u) => u.id === id)?.name ?? id) : '—';
+  }
   readonly busy = signal(false);
   notes: Record<string, string> = {};
 
@@ -65,23 +77,27 @@ export class ConciliacionComponent {
     this.busy.set(false);
   }
 
-  async technicalReverse(id: string): Promise<void> {
-    this.busy.set(true);
-    await this.store.wait(this.store.latency.authorization);
-    this.store.exec(
-      (sim) => {
-        const r = sim.resolveByTechnicalReverse(id);
-        return r.ok
-          ? { ok: true as const, value: r.value, message: `Reverso técnico ${r.value.id}: ${r.value.responseMessage}` }
-          : r;
-      },
-      (v) => toneOf(v.status)
-    );
-    this.busy.set(false);
+  /** UC-17: Finanzas propone el reverso técnico; lo ejecuta la aprobación (UC-18). */
+  technicalReverse(id: string): void {
+    this.store.exec((sim) => sim.propose(id, 'reverso técnico'));
   }
 
   adjust(id: string): void {
-    this.store.exec((sim) => sim.registerAdjustment(id, this.notes[id] ?? ''));
+    this.store.exec((sim) => sim.propose(id, 'ajuste', this.notes[id] ?? ''));
+  }
+
+  async review(id: string, approve: boolean): Promise<void> {
+    const p = this.state().proposals.find((x) => x.id === id);
+    this.busy.set(true);
+    if (approve && p?.kind === 'reverso técnico') {
+      await this.store.wait(this.store.latency.authorization);
+    }
+    const r = this.store.exec((sim) => sim.review('propuesta', id, approve));
+    this.busy.set(false);
+    const rev = r.ok && approve && p?.kind === 'reverso técnico' ? this.state().transactions.find((t) => t.originalId === p.txId && t.reverseKind === 'tecnico') : null;
+    if (rev) {
+      this.store.flash.set({ kind: toneOf(rev.status), text: `${id} aprobada · reverso técnico ${rev.id}: ${rev.responseMessage}` });
+    }
   }
 
   itStatus(row: ConciliationRow): string {

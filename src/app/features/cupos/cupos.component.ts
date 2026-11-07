@@ -17,9 +17,15 @@ import { TraceBadgeComponent } from '../../shared/trace-badge.component';
 export class CuposComponent {
   private readonly store = inject(SimulatorStore);
   readonly state = this.store.state;
+  /** D-T4: el Operador ajusta los cupos; los demás consultan y el Punto de Venta solo ve su PDV. */
+  readonly editable = computed(() => this.store.can('cupos.editar'));
+  readonly myPdv = computed(() => {
+    const u = this.store.currentUser();
+    return u?.profile === 'Punto de Venta' ? u.pdvId : null;
+  });
   readonly lines = BUSINESS_LINES;
 
-  readonly rows = computed(() => quotaTable(this.state()));
+  readonly rows = computed(() => quotaTable(this.state()).filter((r) => !this.myPdv() || r.pdvId === this.myPdv()));
   readonly chains = computed(() =>
     this.state().chains.map((c) => ({ ...c, cons: chainQuotaConsolidated(this.state(), c.id) }))
   );

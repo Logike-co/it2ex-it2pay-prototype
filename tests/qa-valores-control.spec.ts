@@ -1,10 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
-import { enGuia } from './guia';
+import { ingresarComo, irA, limpio } from './sesion';
 
 /**
  * QA T.4c — Valores de control de flow-map §6.7 tras el reinicio, verificados
  * en la interfaz (no en el motor) para Supermercados y Parqueaderos, más los
  * escenarios de lectura E01, E07, E43, E44, E46, E50, E55, E56, E57, E58.
+ * Cada vista se lee con un perfil que la tiene (D-T4).
  */
 
 /** Sin errores de consola ni excepciones de página en ninguna prueba de QA. */
@@ -25,22 +26,20 @@ test.afterEach(() => {
 const LEGEND = 'SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL';
 const ILLUSTRATIVE = 'Ilustrativo — sujeto a validación del responsable funcional';
 
-const fresh = async (page: Page, scenario: 'SUP' | 'PAR') => {
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  if (scenario === 'PAR') {
-    await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
-  }
-  await expect((await enGuia(page, 'selector-escenario'))).toHaveValue(scenario);
+const fresh = (page: Page, scenario: 'SUP' | 'PAR') => limpio(page, scenario);
+
+const PATHS: Record<string, string> = {
+  V01: 'inicio', V02: 'dashboard', V07: 'transacciones', V08: 'cupos', V09: 'cierre',
+  V10: 'conciliacion', V11: 'compensacion', V12: 'finanzas',
 };
 
-const nav = (page: Page, id: string) => page.getByTestId(`nav-${id}`).click();
+const nav = (page: Page, id: string) => irA(page, PATHS[id]);
 
 test('§6.7 Supermercados tras el reinicio, vista por vista', async ({ page }) => {
   await fresh(page, 'SUP');
 
-  // V01 · E01: cobertura y encabezado de selección.
+  // V01 · E01: cobertura (personal de IT2EX) y encabezado de selección (Colocador).
+  await ingresarComo(page, 'ASE-S01', 'inicio');
   const cov = page.getByTestId('cobertura-SUP');
   await expect(cov.getByTestId('cov-cadenas')).toHaveText('2');
   await expect(cov.getByTestId('cov-sucursales')).toHaveText('3');
@@ -48,15 +47,14 @@ test('§6.7 Supermercados tras el reinicio, vista por vista', async ({ page }) =
   await expect(cov.getByTestId('cov-cajas')).toHaveText('4');
   await expect(cov.getByTestId('cov-cajeros')).toHaveText('4');
   await expect(cov.getByTestId('cov-servicios')).toHaveText('11');
-  await page.getByTestId('sel-cadena').selectOption('CAD-S1');
-  await page.getByTestId('sel-sucursal').selectOption('SUC-S1');
+  await ingresarComo(page, 'COL-S01', 'inicio');
   await page.getByTestId('sel-caja').selectOption('CJ-S1-01');
   await expect(page.getByTestId('seleccion-encabezado')).toHaveText(
     'Mercado Central Demo · Sucursal Norte · PDV-S1 · CJ-S1-01'
   );
 
-  // V02 · E07.
-  await nav(page, 'V02');
+  // V02 · E07 (Operador: también V07 y V08).
+  await ingresarComo(page, 'OPE-S01', 'dashboard');
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 612.700');
   await expect(page.getByTestId('kpi-vigentes')).toHaveText('5');
   await expect(page.getByTestId('cnt-rechazadas')).toHaveText('1');
@@ -128,25 +126,30 @@ test('§6.7 Supermercados tras el reinicio, vista por vista', async ({ page }) =
   await expect(page.getByTestId('definir-cupo').getByTestId('leyenda')).toHaveText(LEGEND);
   await expect(page.getByTestId('alertas-cupo').getByTestId('leyenda')).toHaveText(LEGEND);
 
-  // V09 · efectivo esperado por caja.
-  await nav(page, 'V09');
+  // V09 · efectivo esperado por caja: el Colocador de su caja y el Punto de Venta de las de su PDV.
   const esperado = async (caja: string, efectivo: string) => {
     await page.getByTestId('cierre-caja').selectOption(caja);
     await expect(page.getByTestId('esperado-efectivo')).toContainText(efectivo);
   };
+  await ingresarComo(page, 'COL-S01', 'cierre');
   await esperado('CJ-S1-01', '$ 730.200');
   await expect(page.getByTestId('cierre-bloqueado')).toContainText(
     '1 transacción en verificación (TX-S-0010): resuélvala antes de cerrar'
   );
   await expect(page.getByTestId('btn-confirmar-cierre')).toBeDisabled();
+  await ingresarComo(page, 'PV-S01', 'cierre');
   await esperado('CJ-S1-02', '$ 200.000');
+  // El cierre histórico es de CJ-S1-02: lo ve el Punto de Venta de PDV-S1.
+  await expect(page.getByTestId('historial-cierres')).toContainText('CIE-S-000');
+  await ingresarComo(page, 'PV-S02', 'cierre');
   await esperado('CJ-S2-01', '$ 100.000');
+  await ingresarComo(page, 'PV-S03', 'cierre');
   await esperado('CJ-S3-01', '$ 120.000');
   await expect(page.getByTestId('esperado-debito')).toContainText('$ 62.500');
-  await expect(page.getByTestId('historial-cierres')).toContainText('CIE-S-000');
+  await expect(page.getByTestId('historial-cierres')).not.toContainText('CIE-S-000');
 
-  // V10 · E50.
-  await nav(page, 'V10');
+  // V10 · E50 (Finanzas: también V11 y V12).
+  await ingresarComo(page, 'FIN-S01', 'conciliacion');
   await page.getByTestId('btn-conciliar').click();
   await expect(page.getByTestId('conc-comparados')).toHaveText('9');
   await expect(page.getByTestId('conc-conciliados')).toHaveText('7');
@@ -213,7 +216,7 @@ test('§6.7 Supermercados tras el reinicio, vista por vista', async ({ page }) =
 test('§6.7 Parqueaderos tras el reinicio, vista por vista', async ({ page }) => {
   await fresh(page, 'PAR');
 
-  await nav(page, 'V02');
+  await ingresarComo(page, 'OPE-P01', 'dashboard');
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 485.000');
   await expect(page.getByTestId('kpi-vigentes')).toHaveText('5');
   await expect(page.getByTestId('cnt-rechazadas')).toHaveText('1');
@@ -251,20 +254,23 @@ test('§6.7 Parqueaderos tras el reinicio, vista por vista', async ({ page }) =>
   await expect(page.getByTestId('cupo-PDV-P2-Recaudos').getByTestId('alerta-cupo')).toHaveText('Cupo bajo');
   await expect(page.getByTestId('alerta-cupo')).toHaveCount(1);
 
-  await nav(page, 'V09');
   const esperado = async (caja: string, efectivo: string) => {
     await page.getByTestId('cierre-caja').selectOption(caja);
     await expect(page.getByTestId('esperado-efectivo')).toContainText(efectivo);
   };
+  await ingresarComo(page, 'PV-P01', 'cierre');
   await esperado('CJ-P1-01', '$ 445.000');
   await expect(page.getByTestId('esperado-credito')).toContainText('$ 180.000');
   await expect(page.getByTestId('cierre-bloqueado')).toHaveCount(0);
   await esperado('CJ-P1-02', '$ 150.000');
-  await esperado('CJ-P2-01', '$ 100.000');
-  await esperado('CJ-P3-01', '$ 110.000');
   await expect(page.getByTestId('historial-cierres')).toContainText('CIE-P-000');
+  await ingresarComo(page, 'PV-P02', 'cierre');
+  await esperado('CJ-P2-01', '$ 100.000');
+  await ingresarComo(page, 'PV-P03', 'cierre');
+  await esperado('CJ-P3-01', '$ 110.000');
+  await expect(page.getByTestId('historial-cierres')).not.toContainText('CIE-P-000');
 
-  await nav(page, 'V10');
+  await ingresarComo(page, 'FIN-P01', 'conciliacion');
   await page.getByTestId('btn-conciliar').click();
   await expect(page.getByTestId('conc-comparados')).toHaveText('7');
   await expect(page.getByTestId('conc-conciliados')).toHaveText('6');
@@ -284,12 +290,8 @@ test('§6.7 Parqueaderos tras el reinicio, vista por vista', async ({ page }) =>
   await expect(page.getByTestId('comp-diferencias')).toHaveText('$ 0');
 
   // Siguiente transacción TX-P-0009 (se verifica operando una recarga en CJ-P3-01).
-  await nav(page, 'V01');
-  await page.getByTestId('sel-cadena').selectOption('CAD-P2');
-  await page.getByTestId('sel-sucursal').selectOption('SUC-P3');
-  await page.getByTestId('sel-caja').selectOption('CJ-P3-01');
-  await page.getByTestId('sel-usuario').selectOption('CAJ-P04');
-  await page.getByTestId('btn-ingresar').click();
+  await ingresarComo(page, 'COL-P04');
+  await expect(page).toHaveURL(/\/caja$/);
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 110.000');
   await page.getByTestId('servicio-SRV-10').click();
   await page.getByTestId('ref-0').fill('3001112233');

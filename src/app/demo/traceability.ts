@@ -32,7 +32,7 @@ export const rfOf = (us: string): string => `RF-${us.slice(3)}`;
 
 export const ITEMS: Record<string, ItemTrace> = {
   F01: { id: 'F01', name: 'Seleccionar cadena, establecimiento y caja', level: 'P1', view: 'V01', us: ['US-05'], bdd: ['E01'] },
-  F02: { id: 'F02', name: 'Ingresar con perfil de cajero ficticio', level: 'P1', view: 'V01', us: ['US-01', 'US-03'], bdd: ['E02', 'E03'] },
+  F02: { id: 'F02', name: 'Ingresar con usuario ficticio (login)', level: 'P1', view: 'V01', us: ['US-01', 'US-03'], bdd: ['E02', 'E03'] },
   F03: { id: 'F03', name: 'Consultar catálogo de servicios habilitados', level: 'P1', view: 'V05', us: ['US-06'], bdd: ['E16'] },
   F04: { id: 'F04', name: 'Recaudar factura por convenio y referencia', level: 'P1', view: 'V05', us: ['US-09', 'US-30'], bdd: ['E18'] },
   F05: { id: 'F05', name: 'Consultar obligación y valor adeudado simulado', level: 'P1', view: 'V05', us: ['US-09'], bdd: ['E17'] },
@@ -47,7 +47,7 @@ export const ITEMS: Record<string, ItemTrace> = {
   F14: { id: 'F14', name: 'Reversar una operación simulada', level: 'P2', view: 'V06', us: ['US-13'], bdd: ['E38'] },
   B01: { id: 'B01', name: 'Administrar cadenas, aliados y comercios', level: 'P1', view: 'V03', us: ['US-05', 'US-31'], bdd: ['E09'] },
   B02: { id: 'B02', name: 'Registrar sucursales, PDV y cajas', level: 'P1', view: 'V03', us: ['US-05'], bdd: ['E10'] },
-  B03: { id: 'B03', name: 'Registrar y asignar cajeros', level: 'P1', view: 'V03', us: ['US-03', 'US-05'], bdd: ['E11'] },
+  B03: { id: 'B03', name: 'Registrar y asignar colocadores (cajeros)', level: 'P1', view: 'V03', us: ['US-03', 'US-05'], bdd: ['E11'] },
   B04: { id: 'B04', name: 'Registrar dispositivos lógicos', level: 'P2', view: 'V03', us: ['US-05'], bdd: ['E12'] },
   B05: { id: 'B05', name: 'Administrar catálogo de convenios y servicios', level: 'P1', view: 'V04', us: ['US-06', 'US-31'], bdd: ['E13'] },
   B06: { id: 'B06', name: 'Habilitar servicios por cadena o PDV', level: 'P1', view: 'V04', us: ['US-07'], bdd: ['E14'] },
@@ -74,7 +74,7 @@ export const ITEMS: Record<string, ItemTrace> = {
 export const VIEW_BDD: Record<string, ScenarioTrace[]> = {
   V01: [
     { id: 'E01', name: 'Seleccionar cadena, establecimiento y caja', items: ['F01'] },
-    { id: 'E02', name: 'Ingresar con perfil de cajero ficticio en una caja con turno abierto', items: ['F02'] },
+    { id: 'E02', name: 'Ingresar como Colocador en una caja con turno abierto', items: ['F02'] },
     { id: 'E03', name: 'Abrir turno al ingresar a una caja sin turno', items: ['F02'] },
     { id: 'E04', name: 'Reiniciar el escenario restaura la semilla', items: [] },
     { id: 'E05', name: 'Navegar a cada vista sin rutas rotas', items: [] },
@@ -87,7 +87,7 @@ export const VIEW_BDD: Record<string, ScenarioTrace[]> = {
   V03: [
     { id: 'E09', name: 'Crear y editar una cadena ficticia', items: ['B01'] },
     { id: 'E10', name: 'Registrar sucursal, PDV y caja', items: ['B02'] },
-    { id: 'E11', name: 'Registrar y asignar un cajero', items: ['B03'] },
+    { id: 'E11', name: 'Registrar y asignar un colocador', items: ['B03'] },
     { id: 'E12', name: 'Registrar un dispositivo lógico', items: ['B04'] },
   ],
   V04: [
@@ -124,7 +124,7 @@ export const VIEW_BDD: Record<string, ScenarioTrace[]> = {
     { id: 'E39', name: 'Timeout del reverso, resuelto consultando el reverso sin duplicarlo', items: [] },
     { id: 'E40', name: 'Anulación de un recaudo en el mismo turno', items: [] },
     { id: 'E41', name: 'Las recargas no admiten anulación', items: [] },
-    { id: 'E42', name: 'Anular un depósito exige la confirmación del supervisor', items: [] },
+    { id: 'E42', name: 'Anular un depósito exige la confirmación del Punto de Venta', items: [] },
   ],
   V07: [
     { id: 'E43', name: 'Consultar transacciones, estados y traza', items: ['F13'] },

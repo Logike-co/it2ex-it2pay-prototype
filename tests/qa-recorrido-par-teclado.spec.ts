@@ -1,9 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 import { enGuia } from './guia';
+import { abrirTurno, ingresarComo, irA, limpio } from './sesion';
 
 /**
  * QA T.4c — Recorrido comercial de 8 pasos en Parqueaderos (flow-map §1 con
- * los datos de §6.6) y operación de la caja solo con teclado (V05).
+ * los datos de §6.6), cada paso con su perfil (D-T4), y operación de la caja solo con teclado (V05).
  */
 
 /** Sin errores de consola ni excepciones de página en ninguna prueba de QA. */
@@ -23,8 +24,6 @@ test.afterEach(() => {
 
 const LEGEND = 'SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL';
 
-const nav = (page: Page, id: string) => page.getByTestId(`nav-${id}`).click();
-
 const flash = (page: Page, text: string) => expect(page.getByTestId('aviso')).toContainText(text);
 
 const printSpy = async (page: Page) => {
@@ -37,22 +36,22 @@ const printSpy = async (page: Page) => {
 };
 const prints = (page: Page) => page.evaluate(() => (window as unknown as { __prints: number }).__prints);
 
-test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ page }) => {
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6, cada paso con su perfil', async ({ page }) => {
+  await limpio(page, 'PAR');
 
-  // Paso 1
-  await page.getByTestId('usar-PAR').click();
-  await expect((await enGuia(page, 'selector-escenario'))).toHaveValue('PAR');
+  // Paso 1 · Asesor de Ventas.
+  await ingresarComo(page, 'ASE-P01');
+  await expect(await enGuia(page, 'selector-escenario')).toHaveValue('PAR');
+  await page.getByTestId('guia-cerrar').click();
   const cov = page.getByTestId('cobertura-PAR');
   await expect(cov.getByTestId('cov-cadenas')).toHaveText('2');
   await expect(cov.getByTestId('cov-sucursales')).toHaveText('3');
   await expect(cov.getByTestId('cov-pdv')).toHaveText('3');
   await expect(cov.getByTestId('cov-cajas')).toHaveText('4');
 
-  // Paso 2: SUC-P4 / PDV-P4 / CJ-P4-01 en CAD-P1, cajero, dispositivo, habilitación y cupos.
-  await nav(page, 'V03');
+  // Paso 2: el Asesor crea SUC-P4 / PDV-P4 (nace PV-P04); el Punto de Venta crea su caja, su
+  // colocador y su dispositivo; el Super Usuario habilita y el Operador fija los cupos.
+  await irA(page, 'red');
   await page.getByTestId('sucursal-cadena').selectOption('CAD-P1');
   await page.getByTestId('nueva-sucursal').fill('Sede Demo Nueva');
   await page.getByTestId('crear-sucursal').click();
@@ -60,22 +59,23 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
   await page.getByTestId('pdv-sucursal').selectOption('SUC-P4');
   await page.getByTestId('nuevo-pdv').fill('Taquilla Demo Nueva');
   await page.getByTestId('crear-pdv').click();
-  await flash(page, 'PDV-P4');
+  await flash(page, 'PV-P04');
+  await ingresarComo(page, 'PV-P04', 'red');
   await page.getByTestId('caja-pdv').selectOption('PDV-P4');
   await page.getByTestId('crear-caja').click();
   await flash(page, 'CJ-P4-01');
-  await page.getByTestId('nuevo-usuario').fill('Cajero Demo P05');
+  await page.getByTestId('nuevo-usuario').fill('Colocador Demo P05');
   await page.getByTestId('usuario-caja').selectOption('CJ-P4-01');
   await page.getByTestId('crear-usuario').click();
-  await flash(page, 'CAJ-P05');
+  await flash(page, 'COL-P05');
   await page.getByTestId('dispositivo-caja').selectOption('CJ-P4-01');
   await page.getByTestId('crear-dispositivo').click();
   await expect(page.getByTestId('seccion-dispositivos')).toContainText('CJ-P4-01');
-  await nav(page, 'V04');
+  await ingresarComo(page, 'SU-P01', 'convenios');
   await page.getByTestId('hab-servicio').selectOption('SRV-06');
   await page.getByTestId('hab-pdv-PDV-P4').selectOption('si');
   await expect(page.getByTestId('hab-efectivo-PDV-P4')).toHaveText('Sí');
-  await nav(page, 'V08');
+  await ingresarComo(page, 'OPE-P01', 'cupos');
   for (const [line, value] of [
     ['Recaudos', '2000000'],
     ['Recargas', '500000'],
@@ -87,13 +87,8 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
     await page.getByTestId('btn-definir-cupo').click();
     await flash(page, `Cupo de ${line} de PDV-P4`);
   }
-  await nav(page, 'V01');
-  await page.getByTestId('sel-cadena').selectOption('CAD-P1');
-  await page.getByTestId('sel-sucursal').selectOption('SUC-P4');
-  await page.getByTestId('sel-caja').selectOption('CJ-P4-01');
-  await page.getByTestId('sel-usuario').selectOption('CAJ-P05');
-  await page.getByTestId('base-turno').fill('100000');
-  await page.getByTestId('btn-ingresar').click();
+  await ingresarComo(page, 'COL-P05');
+  await abrirTurno(page, 'CJ-P4-01', 100000);
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 100.000');
   await expect(page.getByTestId('servicio-SRV-06')).toBeVisible();
   await expect(page.getByTestId('servicio-SRV-12')).toBeVisible();
@@ -114,7 +109,7 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
   await expect(page.getByTestId('comprobante')).toContainText('ParkCity Demo');
 
   // Paso 4: TAG TransVía 8800778899, $ 50.000 (comisión diferenciada 300 / 150).
-  await nav(page, 'V05');
+  await irA(page, 'caja');
   await page.keyboard.press('F1');
   await page.getByTestId('servicio-SRV-12').click();
   await page.getByTestId('ref-0').fill('8800778899');
@@ -127,7 +122,7 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
   await expect(page.getByTestId('resultado-estado')).toHaveText('Aprobada');
 
   // Paso 5: depósito 1100334455, $ 100.000.
-  await nav(page, 'V05');
+  await irA(page, 'caja');
   await page.keyboard.press('F1');
   await page.getByTestId('servicio-SRV-13').click();
   await page.getByTestId('ref-1').fill('1100334455');
@@ -140,7 +135,7 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
   await expect(page.getByTestId('comprobante')).toContainText('••••4455');
 
   // Paso 6: cierre de CJ-P4-01 (esperado 326.300, declarado 330.000 → sobrante 3.700).
-  await nav(page, 'V09');
+  await irA(page, 'cierre');
   await expect(page.getByTestId('cierre-caja')).toHaveValue('CJ-P4-01');
   await expect(page.getByTestId('esperado-efectivo')).toContainText('$ 326.300');
   await page.getByTestId('cierre-declarado').fill('330000');
@@ -148,18 +143,23 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
   await expect(page.getByTestId('resultado-cierre')).toContainText('CIE-P-001');
   await expect(page.getByTestId('cierre-diferencia')).toHaveText('+3.700');
   await expect(page.getByTestId('cierre-clasificacion')).toHaveText('Sobrante');
+  await irA(page, 'caja');
+  await expect(page.getByTestId('caja-cerrada')).toBeVisible();
 
-  // Paso 7: conciliación + reverso técnico de TX-P-0005, consignación, liquidación y cuenta de cobro.
-  await nav(page, 'V10');
+  // Paso 7: Finanzas concilia y propone el reverso técnico de TX-P-0005; el Aprobador lo aprueba.
+  await ingresarComo(page, 'FIN-P01', 'conciliacion');
   await page.getByTestId('btn-conciliar').click();
   await expect(page.getByTestId('conc-comparados')).toHaveText('10');
   await expect(page.getByTestId('conc-conciliados')).toHaveText('9');
   await page.getByTestId('reverso-tecnico-TX-P-0005').click();
+  await expect(page.getByTestId('pendiente-TX-P-0005')).toContainText('PRO-P-001');
+  await ingresarComo(page, 'APR-P01', 'conciliacion');
+  await page.getByTestId('aprobar-PRO-P-001').click();
   await expect(page.getByTestId('resuelta-TX-P-0005')).toContainText('resuelta por reverso técnico');
   await expect(page.getByTestId('conc-comparados')).toHaveText('11');
   await expect(page.getByTestId('conc-conciliados')).toHaveText('11');
   await expect(page.getByTestId('conc-abiertas')).toHaveText('0');
-  await nav(page, 'V11');
+  await ingresarComo(page, 'FIN-P01', 'compensacion');
   await page.getByTestId('con-pdv').selectOption('PDV-P4');
   await page.getByTestId('con-linea').selectOption('Recaudos');
   await page.getByTestId('con-valor').fill('76300');
@@ -171,18 +171,22 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
   await expect(page.getByTestId('pendiente-PDV-P1')).toContainText('$ 980.000');
   await expect(page.getByTestId('pendiente-PDV-P4')).toContainText('$ 150.000');
   await expect(page.getByTestId('comp-obligacion')).toHaveText('$ 616.300');
-  await nav(page, 'V12');
+  await irA(page, 'finanzas');
   await page.getByTestId('btn-liquidar').click();
   const liq = page.getByTestId('liquidacion-LIQ-P-001');
   await expect(liq.getByTestId('snap-tx')).toHaveText('7');
   await expect(liq.getByTestId('snap-cadena')).toHaveText('$ 2.600');
   await expect(liq.getByTestId('snap-it2ex')).toHaveText('$ 1.300');
+  await ingresarComo(page, 'APR-P01', 'finanzas');
+  await page.getByTestId('aprobar-LIQ-P-001').click();
+  await expect(liq.getByTestId('liq-estado')).toHaveText('Aprobada');
+  await ingresarComo(page, 'FIN-P01', 'finanzas');
   await page.getByTestId('btn-cuenta-cobro').click();
   await expect(page.getByTestId('cc-numero')).toHaveText('CC-DEMO-P-0001');
   await expect(page.getByTestId('cc-total')).toHaveText('$ 1.300');
 
-  // Paso 8: dashboard y trazabilidad.
-  await nav(page, 'V02');
+  // Paso 8: el Operador revisa el dashboard y la trazabilidad.
+  await ingresarComo(page, 'OPE-P01', 'dashboard');
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 616.300');
   await expect(page.getByTestId('kpi-vigentes')).toHaveText('7');
   await expect(page.getByTestId('cnt-reversadas')).toHaveText('2');
@@ -197,20 +201,13 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
   await expect(page).toHaveURL(/\/transacciones\?tx=TX-P-0011/);
   await expect(page.getByTestId('detalle-transaccion')).toContainText('TX-P-0011');
   await expect(page.getByTestId('traza-detalle')).toContainText('Enviando');
-  await nav(page, 'V05');
-  await expect(page.getByTestId('caja-cerrada')).toBeVisible();
 });
 
 test('V05 solo con teclado: F2, Enter, Esc, F12 sin doble pago, F8 y F1', async ({ page }) => {
   await printSpy(page);
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.getByTestId('sel-cadena').selectOption('CAD-S1');
-  await page.getByTestId('sel-sucursal').selectOption('SUC-S1');
-  await page.getByTestId('sel-caja').selectOption('CJ-S1-01');
-  await page.getByTestId('sel-usuario').selectOption('CAJ-S01');
-  await page.getByTestId('btn-ingresar').click();
+  await limpio(page);
+  await ingresarComo(page, 'COL-S01');
+  await expect(page).toHaveURL(/\/caja$/);
   await expect(page.getByTestId('atajos')).toContainText('F12');
 
   await page.keyboard.press('F2');
@@ -252,12 +249,13 @@ test('V05 solo con teclado: F2, Enter, Esc, F12 sin doble pago, F8 y F1', async 
   await page.keyboard.press('F1');
   await expect(page).toHaveURL(/\/caja$/);
   await expect(page.getByTestId('paso-1')).toHaveClass(/bg-primary/);
-  await page.getByTestId('nav-V07').click();
-  await expect(page.getByTestId('conteo-transacciones')).toHaveText('11 transacciones');
+  // El Colocador ve sus movimientos: 8 de la semilla más TX-S-0011.
+  await irA(page, 'transacciones');
+  await expect(page.getByTestId('conteo-transacciones')).toHaveText('9 transacciones');
   await expect(page.getByTestId('fila-TX-S-0012')).toHaveCount(0);
 
   // Doble clic en «Autorizar y cobrar»: una sola transacción.
-  await page.getByTestId('nav-V05').click();
+  await irA(page, 'caja');
   await page.keyboard.press('F1');
   await page.getByTestId('servicio-SRV-10').click();
   await page.getByTestId('ref-0').fill('3001112233');
@@ -267,20 +265,15 @@ test('V05 solo con teclado: F2, Enter, Esc, F12 sin doble pago, F8 y F1', async 
   await page.getByTestId('efectivo-recibido').fill('20000');
   await page.getByTestId('btn-autorizar').dblclick();
   await expect(page).toHaveURL(/tx=TX-S-0012/);
-  await page.getByTestId('nav-V07').click();
-  await expect(page.getByTestId('conteo-transacciones')).toHaveText('12 transacciones');
+  await irA(page, 'transacciones');
+  await expect(page.getByTestId('conteo-transacciones')).toHaveText('10 transacciones');
 });
 
 test('V05: F8 desde la terminal imprime el último comprobante', async ({ page }) => {
   await printSpy(page);
-  await page.goto('/inicio');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.getByTestId('sel-cadena').selectOption('CAD-S1');
-  await page.getByTestId('sel-sucursal').selectOption('SUC-S1');
-  await page.getByTestId('sel-caja').selectOption('CJ-S1-01');
-  await page.getByTestId('sel-usuario').selectOption('CAJ-S01');
-  await page.getByTestId('btn-ingresar').click();
+  await limpio(page);
+  await ingresarComo(page, 'COL-S01');
+  await expect(page).toHaveURL(/\/caja$/);
   await page.getByTestId('servicio-SRV-10').click();
   await page.getByTestId('ref-0').fill('3001112233');
   await page.getByTestId('btn-continuar-1').click();
@@ -289,28 +282,40 @@ test('V05: F8 desde la terminal imprime el último comprobante', async ({ page }
   await page.getByTestId('efectivo-recibido').fill('20000');
   await page.getByTestId('btn-autorizar').click();
   await expect(page).toHaveURL(/tx=TX-S-0011/);
-  await page.getByTestId('nav-V05').click();
-  await expect(page).toHaveURL(/\/caja$/);
+  await irA(page, 'caja');
   await page.keyboard.press('F8');
   await expect(page).toHaveURL(/\/caja\/resultado\?tx=TX-S-0011/);
   await expect.poll(() => prints(page), { timeout: 3000 }).toBe(1);
 });
 
-test('CA-09: la banda es fija, no se puede cerrar y está en las 12 vistas también al imprimir', async ({ page }) => {
-  await page.goto('/inicio');
+test('CA-09: la banda es fija, no se puede cerrar y está en el login y en las 12 vistas también al imprimir', async ({ page }) => {
+  await limpio(page);
   await page.emulateMedia({ media: 'print' });
-  for (const route of [
-    '/inicio', '/dashboard', '/red', '/convenios', '/caja', '/caja/resultado',
-    '/transacciones', '/cupos', '/cierre', '/conciliacion', '/compensacion', '/finanzas',
-  ]) {
-    await page.goto(route);
-    const band = page.getByTestId('banda-simulacion');
-    await expect(band).toBeVisible();
-    await expect(band).toHaveText(LEGEND);
-    await expect(band.locator('button')).toHaveCount(0);
-  }
+  await expect(page.getByTestId('banda-simulacion')).toHaveText(LEGEND);
   await page.emulateMedia({ media: 'screen' });
-  await page.goto('/transacciones');
+  // Cada vista con un perfil que la tiene (D-T4).
+  const porUsuario: [string, string[]][] = [
+    ['ASE-S01', ['/inicio', '/red']],
+    ['OPE-S01', ['/dashboard', '/transacciones', '/cupos']],
+    ['SU-S01', ['/convenios']],
+    ['COL-S01', ['/caja', '/caja/resultado', '/cierre']],
+    ['FIN-S01', ['/conciliacion', '/compensacion', '/finanzas']],
+  ];
+  for (const [user, routes] of porUsuario) {
+    await ingresarComo(page, user);
+    for (const route of routes) {
+      await page.goto(route);
+      await expect(page).toHaveURL(new RegExp(route.replace('/', '\\/') + '$'));
+      // La banda se verifica en la vista de impresión.
+      await page.emulateMedia({ media: 'print' });
+      const band = page.getByTestId('banda-simulacion');
+      await expect(band).toBeVisible();
+      await expect(band).toHaveText(LEGEND);
+      await expect(band.locator('button')).toHaveCount(0);
+      await page.emulateMedia({ media: 'screen' });
+    }
+  }
+  await ingresarComo(page, 'OPE-S01', 'transacciones');
   await page.mouse.wheel(0, 3000);
   await expect(page.getByTestId('banda-simulacion')).toBeInViewport();
   // Término de forbidden_terms del manifiesto, armado por letras para no escribirlo en el código.

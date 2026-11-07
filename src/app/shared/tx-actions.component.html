@@ -40,6 +40,7 @@
             </button>
           }
         }
+        @if (canVoid()) {
         <button
           type="button"
           class="btn"
@@ -50,6 +51,8 @@
         >
           Anular
         </button>
+        }
+        @if (canReverse()) {
         <button
           type="button"
           class="btn"
@@ -60,9 +63,10 @@
         >
           Reversar
         </button>
-        @if (shiftClosed()) {
+        }
+        @if (shiftClosed() && (canVoid() || canReverse())) {
           <span class="self-center text-xs text-muted" data-testid="turno-cerrado">
-            Turno cerrado: no se anula ni se reversa
+            Turno cerrado: no se {{ canReverse() ? 'reversa' : 'anula' }}
           </span>
         }
       }
@@ -78,10 +82,10 @@
           }
         </select>
         @if (t.type === 'deposito') {
-          <label class="label" for="void-sup">Confirmación del supervisor</label>
-          <select id="void-sup" class="input mb-2" [(ngModel)]="supervisorId" data-testid="supervisor-anular">
+          <label class="label" for="void-sup">Confirmación del Punto de Venta</label>
+          <select id="void-sup" class="input mb-2" [(ngModel)]="pdvUserId" data-testid="pdv-anular">
             <option value="">— Sin confirmación —</option>
-            @for (s of supervisors(); track s.id) {
+            @for (s of pdvUsers(); track s.id) {
               <option [value]="s.id">{{ s.name }} ({{ s.id }})</option>
             }
           </select>

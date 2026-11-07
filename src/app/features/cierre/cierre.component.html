@@ -5,7 +5,7 @@
     <span class="label">Caja a cerrar</span>
     <select class="input" data-testid="cierre-caja" [ngModel]="registerId()" (ngModelChange)="registerId.set($event); lastClosing.set(null)">
       <option value="">— Elija una caja —</option>
-      @for (r of state().registers; track r.id) {
+      @for (r of registers(); track r.id) {
         <option [value]="r.id">{{ r.id }} · {{ r.currentShiftId ? 'Abierta (' + r.currentShiftId + ')' : 'Cerrada' }}</option>
       }
     </select>
@@ -51,6 +51,7 @@
           }
         </div>
       }
+      @if (canClose()) {
       <div class="grid max-w-lg gap-2 @3xl:grid-cols-2">
         <label>
           <span class="label">Efectivo declarado (conteo)</span>
@@ -73,6 +74,9 @@
       >
         Confirmar cierre
       </button>
+      } @else {
+        <p class="mt-2 text-xs text-muted" data-testid="solo-consulta">Solo consulta: el cierre lo hace el Colocador de la caja.</p>
+      }
       <app-illustrative>efectivo esperado = base inicial + Σ efectivo de TX aprobadas del turno (recaudo, recarga, depósito) − Σ retiros aprobados del turno
 otro medio = Σ valor de TX aprobadas del turno con ese medio
 Las anuladas y reversadas no cuentan. El cierre se bloquea con transacciones en verificación.</app-illustrative>
@@ -87,7 +91,7 @@ Las anuladas y reversadas no cuentan. El cierre se bloquea con transacciones en 
 <section class="card mt-4" data-testid="historial-cierres">
   <h2 class="card-title">Historial de cierres <app-legend /></h2>
   <div class="overflow-x-auto"><table class="table">
-    <thead><tr><th>Cierre</th><th>Fecha</th><th>Caja · turno</th><th>Cajero</th><th class="num">Esperado</th><th class="num">Declarado</th><th class="num">Diferencia</th><th>Clasificación</th></tr></thead>
+    <thead><tr><th>Cierre</th><th>Fecha</th><th>Caja · turno</th><th>Colocador</th><th class="num">Esperado</th><th class="num">Declarado</th><th class="num">Diferencia</th><th>Clasificación</th></tr></thead>
     <tbody>
       @for (c of history(); track c.id) {
         <tr [attr.data-testid]="'cierre-' + c.id">

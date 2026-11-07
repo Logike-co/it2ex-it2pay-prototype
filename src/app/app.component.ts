@@ -6,6 +6,7 @@ import { DemoHudComponent } from './demo/demo-hud.component';
 import { DemoModeStore } from './demo/demo-mode.store';
 import { ViewTraceComponent } from './demo/view-trace.component';
 import { VIEWS } from './views';
+import { AccessView } from './core/access/access';
 import { CodeTextComponent } from './shared/code-text.component';
 
 /**
@@ -23,11 +24,30 @@ export class AppComponent {
   readonly demo = inject(DemoModeStore);
   private readonly router = inject(Router);
 
-  readonly views = VIEWS;
+  /** Solo las opciones del perfil autenticado; las demás no se muestran (D-T4). */
+  readonly views = computed(() => {
+    const items = VIEWS.filter((v) => this.store.canView(v.id as AccessView)).map((v) => ({ ...v, code: v.id }));
+    return this.store.canView('ROLES') ? [...items, { id: 'ROLES', code: 'R', name: 'Roles y accesos', path: 'roles' }] : items;
+  });
+  readonly user = this.store.currentUser;
   readonly confirmReset = this.demo.confirmReset;
   private flashAt = 0;
 
   constructor() {
+    // El menú lateral arranca oculto después de cada login (también al cambiar de usuario desde la guía).
+    // Sin sesión (cambio de escenario o cierre de sesión) se vuelve al login.
+    let lastUser: string | null | undefined;
+    effect(() => {
+      const id = this.store.currentUser()?.id ?? null;
+      if (id !== lastUser) {
+        if (id) {
+          this.menuOpen.set(false);
+        } else if (lastUser !== undefined) {
+          this.router.navigateByUrl('/login');
+        }
+        lastUser = id;
+      }
+    });
     // Un aviso se descarta al cambiar de vista, salvo que lo haya producido la acción que navegó.
     effect(() => {
       this.store.flash();
@@ -39,8 +59,8 @@ export class AppComponent {
       }
     });
   }
-  /** Menú de las 12 vistas: el botón ☰ lo oculta o lo muestra en cualquier ancho. */
-  readonly menuOpen = signal(true);
+  /** Menú de vistas: el botón ☰ lo oculta o lo muestra en cualquier ancho; arranca oculto tras el login. */
+  readonly menuOpen = signal(false);
 
   readonly session = computed(() => {
     const s = this.store.state();
@@ -83,6 +103,11 @@ export class AppComponent {
     }
   }
 
+  signOut(): void {
+    this.store.run((sim) => sim.signOut());
+    this.router.navigateByUrl('/login');
+  }
+
   doReset(): void {
     if (this.confirmReset() === 'all') {
       this.store.resetAll();
@@ -90,6 +115,6 @@ export class AppComponent {
       this.store.resetScenario();
     }
     this.confirmReset.set(null);
-    this.router.navigateByUrl('/inicio');
+    this.router.navigateByUrl(this.store.currentUser() ? '/inicio' : '/login');
   }
 }
