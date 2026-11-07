@@ -1,8 +1,5 @@
 import { Component, computed, effect, HostListener, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthOverride, ReverseOverride, ScenarioId } from './core/simulation/model';
-import { SCENARIO_SHORT } from './core/simulation/seed';
 import { branchName, chainName, pdvOfRegister, userName } from './core/simulation/selectors';
 import { SimulatorStore } from './core/state/simulator.store';
 import { DemoHudComponent } from './demo/demo-hud.component';
@@ -12,12 +9,13 @@ import { VIEWS } from './views';
 import { CodeTextComponent } from './shared/code-text.component';
 
 /**
- * Shell: banda de simulación, encabezado, menú de 12 vistas, reinicio, panel del presentador,
- * guía de demo y trazabilidad (workflow T §1.4).
+ * Shell: banda de simulación, barra superior (☰, logo IT2Pay, sesión y botón de la guía),
+ * menú de 12 vistas y guía de demo acoplada. Todos los controles de la demo viven en la
+ * guía (workflow T §1.4); el shell solo conserva el diálogo de reinicio y los atajos.
  */
 @Component({
   selector: 'app-root',
-  imports: [CodeTextComponent, RouterOutlet, RouterLink, RouterLinkActive, FormsModule, DemoHudComponent, ViewTraceComponent],
+  imports: [CodeTextComponent, RouterOutlet, RouterLink, RouterLinkActive, DemoHudComponent, ViewTraceComponent],
   templateUrl: './app.component.html',
 })
 export class AppComponent {
@@ -26,27 +24,7 @@ export class AppComponent {
   private readonly router = inject(Router);
 
   readonly views = VIEWS;
-  readonly scenarios: { id: ScenarioId; name: string }[] = [
-    { id: 'SUP', name: SCENARIO_SHORT.SUP },
-    { id: 'PAR', name: SCENARIO_SHORT.PAR },
-  ];
-  readonly authOptions: { value: AuthOverride; label: string }[] = [
-    { value: 'gatillo', label: 'Según gatillo' },
-    { value: 'aprobar', label: 'Aprobar' },
-    { value: 'rechazar', label: 'Rechazar' },
-    { value: 'timeout-aprobada', label: 'Timeout → aprobada al consultar' },
-    { value: 'timeout-rechazada', label: 'Timeout → rechazada al consultar' },
-    { value: 'timeout-en-proceso', label: 'Timeout → en proceso, aprobada a la 2.ª consulta' },
-    { value: 'timeout-sin-registro', label: 'Timeout → sin registro (reintento)' },
-  ];
-  readonly reverseOptions: { value: ReverseOverride; label: string }[] = [
-    { value: 'aprobado', label: 'Aprobado' },
-    { value: 'rechazado', label: 'Rechazado' },
-    { value: 'timeout-aprobado', label: 'Timeout → aprobado' },
-    { value: 'timeout-rechazado', label: 'Timeout → rechazado' },
-  ];
-
-  readonly confirmReset = signal<'scenario' | 'all' | null>(null);
+  readonly confirmReset = this.demo.confirmReset;
   private flashAt = 0;
 
   constructor() {
@@ -61,7 +39,8 @@ export class AppComponent {
       }
     });
   }
-  readonly menuOpen = signal(false);
+  /** Menú de las 12 vistas: el botón ☰ lo oculta o lo muestra en cualquier ancho. */
+  readonly menuOpen = signal(true);
 
   readonly session = computed(() => {
     const s = this.store.state();
@@ -75,11 +54,6 @@ export class AppComponent {
       user: `${userName(s, sess.userId)} (${sess.userId})`,
       shift: sess.shiftId ?? 'Caja cerrada',
     };
-  });
-
-  readonly lastTx = computed(() => {
-    const s = this.store.state();
-    return s.transactions.find((t) => t.id === s.lastResultTxId) ?? null;
   });
 
   /**
@@ -102,20 +76,11 @@ export class AppComponent {
     }
   }
 
-  changeScenario(id: ScenarioId): void {
-    this.store.selectScenario(id);
-  }
-
-  setAuth(value: AuthOverride): void {
-    this.store.run((sim) => sim.setPresenter({ nextAuthorization: value }));
-  }
-
-  setReverse(value: ReverseOverride): void {
-    this.store.run((sim) => sim.setPresenter({ nextReverse: value }));
-  }
-
-  setIdempotency(value: boolean): void {
-    this.store.run((sim) => sim.setPresenter({ idempotency: value }));
+  /** En pantallas angostas el menú se cierra al elegir una vista; en escritorio se queda abierto. */
+  closeMenuOnSmallScreen(): void {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches) {
+      this.menuOpen.set(false);
+    }
   }
 
   doReset(): void {

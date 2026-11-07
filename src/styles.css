@@ -1,19 +1,32 @@
 @import "tailwindcss";
 
 /*
- * Paleta NEUTRA PROVISIONAL de IT2Pay (S-07).
- * Cuando llegue el manual de marca se cambian SOLO estos tokens (y el
- * logotipo textual del encabezado); las vistas no se tocan.
+ * Identidad visual de IT2Pay, tomada del portal transaccional IT2Pay
+ * (azul institucional, degradado aqua del menú, colores del logo y Nunito).
+ * Si llega un manual de marca se cambian SOLO estos tokens y el logo de
+ * public/brand/; las vistas no se tocan.
  */
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+  src: url("./fonts/nunito-latin-wght-normal.woff2") format("woff2");
+}
+
 :root {
-  --it2pay-primary: #334155;
+  --it2pay-primary: #0e4495;
+  --it2pay-primary-hover: #0a3a80;
   --it2pay-primary-contrast: #ffffff;
-  --it2pay-primary-soft: #e2e8f0;
+  --it2pay-primary-soft: #c9e7f4;
+  --it2pay-accent: #00aeef; /* «2» del logo: solo decorativo, nunca texto */
+  --it2pay-accent-2: #72ee4b; /* «PAY» del logo: solo decorativo, nunca texto */
+  --it2pay-brand-gradient: linear-gradient(90deg, #c9e7f4 10%, #9ce8dd 100%);
   --it2pay-surface: #ffffff;
-  --it2pay-surface-alt: #f1f5f9;
-  --it2pay-border: #cbd5e1;
-  --it2pay-text: #0f172a;
-  --it2pay-text-muted: #475569;
+  --it2pay-surface-alt: #f8f9fc;
+  --it2pay-border: #e3e6f0;
+  --it2pay-text: #3a3b45;
+  --it2pay-text-muted: #5a5c69;
   --it2pay-success: #15803d;
   --it2pay-success-soft: #dcfce7;
   --it2pay-warning: #b45309;
@@ -22,14 +35,17 @@
   --it2pay-error-soft: #fee2e2;
   --it2pay-band: #7f1d1d;
   --it2pay-band-text: #ffffff;
-  --it2pay-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+  --it2pay-font: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
 @theme inline {
   --color-primary: var(--it2pay-primary);
+  --color-primary-hover: var(--it2pay-primary-hover);
   --color-primary-contrast: var(--it2pay-primary-contrast);
   --color-primary-soft: var(--it2pay-primary-soft);
+  --color-accent: var(--it2pay-accent);
+  --color-accent-2: var(--it2pay-accent-2);
   --color-surface: var(--it2pay-surface);
   --color-surface-alt: var(--it2pay-surface-alt);
   --color-line: var(--it2pay-border);
@@ -59,8 +75,9 @@ body {
 }
 
 @layer components {
+  /* Franja izquierda de 0,25rem: la firma de las tarjetas del portal IT2Pay. */
   .card {
-    @apply min-w-0 rounded-lg border border-line bg-surface p-4 shadow-sm;
+    @apply min-w-0 rounded-lg border border-l-4 border-line border-l-primary-soft bg-surface p-4 shadow-sm;
   }
   .card-title {
     @apply mb-3 flex flex-wrap items-center gap-2 text-base font-semibold text-ink;
@@ -69,7 +86,7 @@ body {
     @apply inline-flex shrink-0 items-center justify-center gap-1 rounded-md text-center border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply border-primary bg-primary text-primary-contrast hover:bg-primary hover:opacity-90;
+    @apply border-primary bg-primary text-primary-contrast hover:border-primary-hover hover:bg-primary-hover;
   }
   .btn-danger {
     @apply border-error bg-error text-white hover:bg-error hover:opacity-90;
@@ -102,7 +119,10 @@ body {
     @apply rounded border border-line bg-surface-alt px-1 font-mono text-[11px] text-muted;
   }
   .page-title {
-    @apply text-xl font-semibold text-ink;
+    @apply text-xl font-bold text-primary;
+  }
+  .brand-rule {
+    background: var(--it2pay-brand-gradient);
   }
 }
 

@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { enGuia } from './guia';
 
 /**
  * Modo presentador (workflow T §1.4, X01–X04): guía de demo, atajos, presets ESC-01..03,
@@ -133,7 +134,7 @@ test('X02: Ctrl+Shift+R reinicia el escenario en 1 clic, sin diálogo y sin reca
 
 test('ESC-02: Parqueaderos reiniciado; la inconsistencia de Reval (simulado) se resuelve con reverso técnico', async ({ page }) => {
   await applyPreset(page, 'ESC-02');
-  await expect(page.getByTestId('selector-escenario')).toHaveValue('PAR');
+  await expect((await enGuia(page, 'selector-escenario'))).toHaveValue('PAR');
   await page.getByTestId('nav-V02').click();
   await expect(page.getByTestId('kpi-recaudo')).toHaveText('$ 485.000');
   await expect(page.getByTestId('kpi-tasa')).toHaveText('85,7 %');
@@ -157,7 +158,7 @@ test('ESC-02: Parqueaderos reiniciado; la inconsistencia de Reval (simulado) se 
 
 test('ESC-03: la próxima autorización se rechaza; no suma al recaudo y queda trazada', async ({ page }) => {
   await applyPreset(page, 'ESC-03');
-  await page.getByTestId('guia-panel-presentador').click();
+  await (await enGuia(page, 'btn-presentador')).click();
   await expect(page.getByTestId('panel-autorizacion')).toHaveValue('rechazar');
 
   await login(page, 'CAD-S1', 'SUC-S1', 'CJ-S1-01', 'CAJ-S01');
@@ -180,7 +181,7 @@ test('ESC-03: la próxima autorización se rechaza; no suma al recaudo y queda t
 
 test('X04: la trazabilidad muestra US y RF en cada vista, marca «solo demo» y no se imprime', async ({ page }) => {
   await expect(page.getByTestId('trazabilidad-vista')).toHaveCount(0);
-  await page.getByTestId('btn-trazabilidad').check();
+  await (await enGuia(page, 'btn-trazabilidad')).check();
 
   await page.getByTestId('nav-V05').click();
   const strip = page.getByTestId('trazabilidad-vista');
@@ -201,7 +202,7 @@ test('X04: la trazabilidad muestra US y RF en cada vista, marca «solo demo» y 
   await expect(page.getByTestId('badge-trazabilidad').first()).toBeHidden();
   await page.emulateMedia({ media: 'screen' });
 
-  await page.getByTestId('btn-trazabilidad').uncheck();
+  await (await enGuia(page, 'btn-trazabilidad')).uncheck();
   await expect(page.getByTestId('badge-trazabilidad')).toHaveCount(0);
 });
 
@@ -215,7 +216,7 @@ test('D-02: Enter en un control de la guía no autoriza la operación de la caja
   await page.getByTestId('btn-continuar-2').click();
   await page.getByTestId('efectivo-recibido').fill('100000');
 
-  for (const id of ['btn-trazabilidad', 'guia-trazabilidad', 'guia-saltar-vista']) {
+  for (const id of ['btn-trazabilidad', 'btn-presentador', 'guia-saltar-vista']) {
     await page.getByTestId(id).focus();
     await page.keyboard.press('Enter');
     // La autorización navega tras la latencia simulada (~0,8 s): se espera más que eso.

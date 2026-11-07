@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { enGuia } from './guia';
 
 /**
  * QA T.4c — Reglas A–D y caminos de error en la interfaz (flow-map §3.3,
@@ -52,7 +53,7 @@ const newOp = async (page: Page) => {
 
 const openPanel = async (page: Page) => {
   if (!(await page.getByTestId('panel-presentador').isVisible())) {
-    await page.getByTestId('btn-presentador').click();
+    await (await enGuia(page, 'btn-presentador')).click();
   }
 };
 

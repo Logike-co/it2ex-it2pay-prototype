@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { enGuia } from './guia';
 
 /**
  * QA T.4c — Reglas de borde en la interfaz: R-06/R-07 con turno cerrado,
@@ -26,7 +27,7 @@ const fresh = async (page: Page, scenario: 'SUP' | 'PAR' = 'SUP') => {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   if (scenario === 'PAR') {
-    await page.getByTestId('selector-escenario').selectOption('PAR');
+    await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
   }
 };
 

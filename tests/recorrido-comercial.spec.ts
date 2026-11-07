@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { enGuia } from './guia';
 
 /**
  * Recorrido comercial de referencia (flow-map §1) sobre Supermercados,
@@ -16,7 +17,7 @@ const flashContains = async (page: Page, text: string | RegExp) => {
 };
 
 const resetScenario = async (page: Page) => {
-  await page.getByTestId('btn-reiniciar').click();
+  await (await enGuia(page, 'btn-reiniciar')).click();
   await page.getByTestId('confirmar-reinicio').click();
   await expect(page).toHaveURL(/\/inicio$/);
 };

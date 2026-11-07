@@ -1,26 +1,31 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { ScenarioId } from '../core/simulation/model';
+import { SCENARIO_SHORT } from '../core/simulation/seed';
 import { SimulatorStore } from '../core/state/simulator.store';
 import { VIEWS } from '../views';
 import { DemoModeStore } from './demo-mode.store';
 import { PresetId } from './demo-script';
 import { itemsTrace } from './traceability';
 import { CodeTextComponent } from '../shared/code-text.component';
+import { DemoPresenterComponent } from './demo-presenter.component';
 
 /**
  * Guía de demo en pantalla (workflow T §1.4-1, X01): paso actual del guion con acción,
- * narrativa y checklist, saltos a cualquier paso o vista, presets ESC-01..03 (X02) y
- * acceso al panel del presentador. Se abre con el botón «Guía de demo» o `Ctrl+Shift+D`,
- * acoplada a la derecha de la vista para no tapar sus controles.
+ * narrativa y checklist, saltos a cualquier paso o vista, presets ESC-01..03 (X02).
+ * Concentra TODOS los controles de la demo (escenario, presets, panel del presentador,
+ * trazabilidad y reinicios) para que la pantalla de la demo quede limpia. Se abre con el
+ * botón «Guía de demo» o `Ctrl+Shift+D`, acoplada a la derecha de la vista sin taparla.
  */
 @Component({
   selector: 'app-demo-hud',
-  imports: [CodeTextComponent],
+  imports: [CodeTextComponent, DemoPresenterComponent, FormsModule],
   // El panel es un hijo directo de la fila del shell: se acopla a la derecha sin tapar la vista.
   host: { class: 'contents' },
   template: `@if (demo.hudOpen()) {
     <aside
-      class="no-print sticky top-6 flex max-h-[calc(100vh-1.5rem)] w-[22rem] max-w-[40vw] 2xl:w-[24rem] shrink-0 flex-col self-start overflow-hidden border-l border-line bg-surface text-sm"
+      class="no-print sticky top-6 flex max-h-[calc(100vh-5.5rem)] w-[22rem] max-w-[40vw] 2xl:w-[24rem] shrink-0 flex-col self-start overflow-hidden border-l border-line bg-surface text-sm"
       data-testid="guia-demo"
       aria-label="Guía de demo"
     >
@@ -30,6 +35,19 @@ import { CodeTextComponent } from '../shared/code-text.component';
         <button type="button" class="px-1" aria-label="Cerrar guía" data-testid="guia-cerrar" (click)="demo.toggleHud()">✕</button>
       </header>
 
+      <label class="flex items-center gap-2 border-b border-line px-3 pt-2 pb-1 text-xs">
+        <span class="text-muted">Escenario</span>
+        <select
+          class="input min-w-0 flex-1 text-xs"
+          data-testid="selector-escenario"
+          [ngModel]="sim.activeScenario()"
+          (ngModelChange)="sim.selectScenario($event)"
+        >
+          @for (sc of scenarios; track sc.id) {
+            <option [value]="sc.id">{{ sc.name }}</option>
+          }
+        </select>
+      </label>
       <div class="flex flex-wrap items-center gap-1 border-b border-line px-3 py-2" data-testid="guia-presets">
         @for (p of demo.presets; track p.id) {
           <button
@@ -123,6 +141,8 @@ import { CodeTextComponent } from '../shared/code-text.component';
             }
           </select>
         </label>
+
+        <app-demo-presenter />
       </div>
 
       <footer class="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2">
@@ -136,15 +156,20 @@ import { CodeTextComponent } from '../shared/code-text.component';
         >
           Siguiente ▶
         </button>
-        <span class="flex-1"></span>
-        <label class="flex items-center gap-1 text-xs">
-          <input type="checkbox" data-testid="guia-trazabilidad" [checked]="demo.showTrace()" (change)="demo.toggleTrace()" />
+      </footer>
+      <div class="flex flex-wrap items-center gap-2 border-t border-line bg-surface-alt px-3 py-2" data-testid="guia-ajustes">
+        <label class="flex items-center gap-1 text-xs" title="Historias (US) y requerimientos (RF) de cada vista">
+          <input type="checkbox" data-testid="btn-trazabilidad" [checked]="demo.showTrace()" (change)="demo.toggleTrace()" />
           Trazabilidad
         </label>
-        <button type="button" class="text-xs underline" data-testid="guia-panel-presentador" (click)="sim.presenterOpen.set(!sim.presenterOpen())">
-          Panel del presentador
+        <span class="flex-1"></span>
+        <button type="button" class="btn btn-danger px-2 py-1 text-xs" data-testid="btn-reiniciar" (click)="demo.confirmReset.set('scenario')">
+          Reiniciar escenario
         </button>
-      </footer>
+        <button type="button" class="btn px-2 py-1 text-xs" data-testid="btn-reiniciar-todo" (click)="demo.confirmReset.set('all')">
+          Reiniciar todo
+        </button>
+      </div>
       <p class="border-t border-line px-3 py-1 text-[11px] text-muted">Ctrl+Shift+R reinicia el escenario en 1 clic</p>
     </aside>
   }`,
@@ -154,6 +179,10 @@ export class DemoHudComponent {
   readonly sim = inject(SimulatorStore);
   private readonly router = inject(Router);
   readonly views = VIEWS;
+  readonly scenarios: { id: ScenarioId; name: string }[] = [
+    { id: 'SUP', name: SCENARIO_SHORT.SUP },
+    { id: 'PAR', name: SCENARIO_SHORT.PAR },
+  ];
 
   readonly pendingPreset = signal<PresetId | null>(null);
   private readonly checked = signal<Set<number>>(new Set());

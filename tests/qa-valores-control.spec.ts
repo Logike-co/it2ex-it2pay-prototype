@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { enGuia } from './guia';
 
 /**
  * QA T.4c — Valores de control de flow-map §6.7 tras el reinicio, verificados
@@ -29,9 +30,9 @@ const fresh = async (page: Page, scenario: 'SUP' | 'PAR') => {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   if (scenario === 'PAR') {
-    await page.getByTestId('selector-escenario').selectOption('PAR');
+    await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
   }
-  await expect(page.getByTestId('selector-escenario')).toHaveValue(scenario);
+  await expect((await enGuia(page, 'selector-escenario'))).toHaveValue(scenario);
 };
 
 const nav = (page: Page, id: string) => page.getByTestId(`nav-${id}`).click();

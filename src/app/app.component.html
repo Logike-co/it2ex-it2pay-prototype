@@ -7,124 +7,53 @@
     SIMULACIÓN / SIN VALIDEZ TRANSACCIONAL
   </div>
 
-  <header class="no-print border-b border-line bg-surface px-4 py-2">
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+  <header class="no-print bg-surface shadow-sm" data-testid="barra-superior">
+    <div class="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
       <button
         type="button"
-        class="btn md:hidden"
+        class="rounded-md border border-line px-2 py-1 text-primary hover:bg-primary-soft"
         aria-label="Menú"
+        aria-controls="menu-vistas"
+        data-testid="btn-menu"
+        [attr.aria-expanded]="menuOpen()"
         (click)="menuOpen.set(!menuOpen())"
       >
         ☰
       </button>
-      <a routerLink="/inicio" class="text-lg font-bold text-primary" data-testid="logotipo">
-        IT2Pay <span class="font-normal text-muted">· Simulador comercial</span>
+      <a routerLink="/inicio" class="flex shrink-0 items-center" data-testid="logotipo">
+        <img src="brand/it2pay-logo.png" alt="" class="h-8 w-auto" width="164" height="32" data-testid="logo-img" />
+        <span class="sr-only">IT2Pay · Simulador comercial</span>
       </a>
-      <label class="flex items-center gap-1 text-sm">
-        <span class="text-muted">Escenario</span>
-        <select
-          class="input w-auto"
-          data-testid="selector-escenario"
-          [ngModel]="store.activeScenario()"
-          (ngModelChange)="changeScenario($event)"
-        >
-          @for (sc of scenarios; track sc.id) {
-            <option [value]="sc.id">{{ sc.name }}</option>
-          }
-        </select>
-      </label>
-      <div class="order-last w-full text-xs text-muted" data-testid="sesion-encabezado">
+      <span class="rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-bold tracking-wider whitespace-nowrap text-primary uppercase">
+        Simulador comercial
+      </span>
+      <div class="ml-auto min-w-0 text-right text-xs text-muted" data-testid="sesion-encabezado">
         @if (session(); as s) {
-          <span class="font-medium text-ink"><app-code-text [text]="s.text" /></span>
+          <span class="font-semibold text-ink"><app-code-text [text]="s.text" /></span>
           · <app-code-text [text]="s.user" /> · Turno: <span class="whitespace-nowrap">{{ s.shift }}</span>
         } @else {
           Sin caja seleccionada
         }
       </div>
-      <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
-        <button
-          type="button"
-          class="btn"
-          data-testid="btn-guia-demo"
-          title="Ctrl+Shift+D"
-          [class.btn-primary]="demo.hudOpen()"
-          (click)="demo.toggleHud()"
-        >
-          Guía de demo
-        </button>
-        <label class="flex items-center gap-1 text-sm" title="Historias (US) y requerimientos (RF) de cada vista">
-          <input type="checkbox" data-testid="btn-trazabilidad" [checked]="demo.showTrace()" (change)="demo.toggleTrace()" />
-          Trazabilidad
-        </label>
-        <button type="button" class="btn" data-testid="btn-presentador" (click)="store.presenterOpen.set(!store.presenterOpen())">
-          Panel del presentador
-        </button>
-        <button type="button" class="btn btn-danger" data-testid="btn-reiniciar" (click)="confirmReset.set('scenario')">
-          Reiniciar escenario
-        </button>
-        <button type="button" class="btn" data-testid="btn-reiniciar-todo" (click)="confirmReset.set('all')">
-          Reiniciar todo
-        </button>
-      </div>
+      <button
+        type="button"
+        class="btn"
+        data-testid="btn-guia-demo"
+        title="Abrir o cerrar la guía de demo (Ctrl+Shift+D)"
+        [class.btn-primary]="demo.hudOpen()"
+        [attr.aria-pressed]="demo.hudOpen()"
+        (click)="demo.toggleHud()"
+      >
+        Guía de demo <span class="text-[10px] opacity-70">Ctrl+Shift+D</span>
+      </button>
     </div>
+    <div class="brand-rule h-[3px]" aria-hidden="true"></div>
   </header>
-
-  @if (store.presenterOpen()) {
-    <section
-      class="no-print border-b border-line bg-warning-soft px-4 py-3 text-sm"
-      data-testid="panel-presentador"
-      aria-label="Panel del presentador"
-    >
-      <div class="flex flex-wrap items-end gap-4">
-        <label>
-          <span class="label">Próxima autorización (un solo uso)</span>
-          <select
-            class="input w-auto"
-            data-testid="panel-autorizacion"
-            [ngModel]="store.state().presenter.nextAuthorization"
-            (ngModelChange)="setAuth($event)"
-          >
-            @for (o of authOptions; track o.value) {
-              <option [value]="o.value">{{ o.label }}</option>
-            }
-          </select>
-        </label>
-        <label>
-          <span class="label">Próximo reverso (un solo uso)</span>
-          <select
-            class="input w-auto"
-            data-testid="panel-reverso"
-            [ngModel]="store.state().presenter.nextReverse"
-            (ngModelChange)="setReverse($event)"
-          >
-            @for (o of reverseOptions; track o.value) {
-              <option [value]="o.value">{{ o.label }}</option>
-            }
-          </select>
-        </label>
-        <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            data-testid="panel-idempotencia"
-            [ngModel]="store.state().presenter.idempotency"
-            (ngModelChange)="setIdempotency($event)"
-          />
-          <span>Reval (simulado) ofrece idempotencia</span>
-        </label>
-        <div class="text-xs text-muted">
-          Gatillos por terminación: 013 rechazo · 408 timeout→aprobada · 409 timeout→rechazada · 410 en
-          proceso · 404 sin registro · 999 sin obligación · OTP 000000 rechazo.
-          @if (lastTx(); as t) {
-            <br />Último desenlace: <strong>{{ t.id }}</strong> — {{ t.appliedOutcome }}
-          }
-        </div>
-      </div>
-    </section>
-  }
 
   <div class="flex flex-1">
     <nav
-      class="no-print shrink-0 border-r border-line bg-surface p-2 md:block"
+      id="menu-vistas"
+      class="no-print shrink-0 border-r border-line bg-surface p-2"
       [class]="demo.hudOpen() ? 'w-16 2xl:w-56' : 'w-56'"
       [class.hidden]="!menuOpen()"
       aria-label="Vistas del simulador"
@@ -140,10 +69,10 @@
               ariaCurrentWhenActive="page"
               [routerLinkActiveOptions]="{ exact: true }"
               class="flex gap-2 rounded px-2 py-1.5 text-sm"
-              [class]="rla.isActive ? 'bg-primary text-primary-contrast' : 'hover:bg-surface-alt'"
+              [class]="rla.isActive ? 'bg-primary font-semibold text-primary-contrast' : 'text-primary hover:bg-primary-soft'"
               [attr.data-testid]="'nav-' + v.id"
               [attr.title]="v.id + ' · ' + v.name"
-              (click)="menuOpen.set(false)"
+              (click)="closeMenuOnSmallScreen()"
             >
               <span class="font-mono text-xs opacity-70">{{ v.id }}</span>
               <span [class]="demo.hudOpen() ? 'hidden 2xl:inline' : ''">{{ v.name }}</span>

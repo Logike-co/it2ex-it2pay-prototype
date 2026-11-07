@@ -31,6 +31,9 @@ export class DemoModeStore {
   readonly presetId = signal<PresetId>(this.initial.preset);
   readonly stepIndex = signal(this.initial.step);
 
+  /** Reinicio pendiente de confirmar (diálogo del shell); lo piden los botones de la guía. */
+  readonly confirmReset = signal<'scenario' | 'all' | null>(null);
+
   /** Vista activa (V01..V12) según la ruta; null fuera de las 12 vistas. */
   readonly currentView = signal<string | null>(null);
 

@@ -25,3 +25,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Nunito
+
+Tipografía autoalojada en `src/fonts/nunito-latin-wght-normal.woff2` (subconjunto latin de la versión variable distribuida por Fontsource). Licencia: SIL Open Font License 1.1, cuyo texto completo está en `src/fonts/OFL-Nunito.txt`.
+
+```text
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+```
+
+## Logo de IT2Pay
+
+`public/brand/it2pay-logo.png` es el logo del portal transaccional IT2Pay, propiedad de IT2EX. Se usa en este simulador con fines de demostración comercial de IT2Pay.

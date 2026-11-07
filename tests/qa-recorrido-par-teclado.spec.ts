@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { enGuia } from './guia';
 
 /**
  * QA T.4c — Recorrido comercial de 8 pasos en Parqueaderos (flow-map §1 con
@@ -43,7 +44,7 @@ test('recorrido comercial PAR (pasos 1–8) con los datos de §6.6', async ({ pa
 
   // Paso 1
   await page.getByTestId('usar-PAR').click();
-  await expect(page.getByTestId('selector-escenario')).toHaveValue('PAR');
+  await expect((await enGuia(page, 'selector-escenario'))).toHaveValue('PAR');
   const cov = page.getByTestId('cobertura-PAR');
   await expect(cov.getByTestId('cov-cadenas')).toHaveText('2');
   await expect(cov.getByTestId('cov-sucursales')).toHaveText('3');

@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { enGuia } from './guia';
 
 /**
  * QA T.4c — Red, convenios, cupos, cierre, conciliación, compensación y
@@ -314,7 +315,7 @@ test('E57/E59: liquidación snapshot y cuenta de cobro de ejemplo', async ({ pag
 
 test('E52: reverso técnico en Parqueaderos', async ({ page }) => {
   await fresh(page);
-  await page.getByTestId('selector-escenario').selectOption('PAR');
+  await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
   await login(page, 'CAD-P1', 'SUC-P1', 'CJ-P1-01', 'CAJ-P01');
   await expect(page.getByTestId('efectivo-esperado')).toHaveText('$ 445.000');
   await nav(page, 'V10');
@@ -356,25 +357,25 @@ test('E04/R-18: persistencia al recargar, reinicio aislado por escenario y «Rei
   await page.getByTestId('modalidad-descontado').check();
   await nav(page, 'V12');
   await page.getByTestId('btn-liquidar').click();
-  await page.getByTestId('btn-presentador').click();
+  await (await enGuia(page, 'btn-presentador')).click();
   await page.getByTestId('panel-idempotencia').uncheck();
 
   // PAR: una operación.
-  await page.getByTestId('selector-escenario').selectOption('PAR');
+  await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
   await login(page, 'CAD-P2', 'SUC-P3', 'CJ-P3-01', 'CAJ-P04');
   await recarga(page, 'TX-P-0009');
 
   // Recargar conserva ambos escenarios y el activo.
   await page.reload();
-  await expect(page.getByTestId('selector-escenario')).toHaveValue('PAR');
+  await expect((await enGuia(page, 'selector-escenario'))).toHaveValue('PAR');
   await nav(page, 'V07');
   await expect(page.getByTestId('fila-TX-P-0009')).toBeVisible();
-  await page.getByTestId('selector-escenario').selectOption('SUP');
+  await (await enGuia(page, 'selector-escenario')).selectOption('SUP');
   await expect(page.getByTestId('fila-TX-S-0011')).toBeVisible();
   await expect(page.getByTestId('sesion-encabezado')).toContainText('CJ-S1-01');
 
   // Reiniciar escenario (SUP).
-  await page.getByTestId('btn-reiniciar').click();
+  await (await enGuia(page, 'btn-reiniciar')).click();
   await expect(page.getByTestId('dialogo-reinicio')).toContainText('el otro escenario no se toca');
   await page.getByTestId('confirmar-reinicio').click();
   await expect(page).toHaveURL(/\/inicio$/);
@@ -393,7 +394,7 @@ test('E04/R-18: persistencia al recargar, reinicio aislado por escenario y «Rei
   await nav(page, 'V10');
   await expect(page.getByTestId('corte')).toContainText('sin ejecutar');
   if (!(await page.getByTestId('panel-presentador').isVisible())) {
-    await page.getByTestId('btn-presentador').click();
+    await (await enGuia(page, 'btn-presentador')).click();
   }
   await expect(page.getByTestId('panel-idempotencia')).toBeChecked();
   await expect(page.getByTestId('panel-autorizacion')).toHaveValue('gatillo');
@@ -402,15 +403,15 @@ test('E04/R-18: persistencia al recargar, reinicio aislado por escenario y «Rei
   await recarga(page, 'TX-S-0011');
 
   // PAR conserva su estado.
-  await page.getByTestId('selector-escenario').selectOption('PAR');
+  await (await enGuia(page, 'selector-escenario')).selectOption('PAR');
   await nav(page, 'V07');
   await expect(page.getByTestId('fila-TX-P-0009')).toBeVisible();
 
   // Reiniciar todo.
-  await page.getByTestId('btn-reiniciar-todo').click();
+  await (await enGuia(page, 'btn-reiniciar-todo')).click();
   await page.getByTestId('confirmar-reinicio').click();
   await nav(page, 'V07');
   await expect(page.getByTestId('fila-TX-P-0009')).toHaveCount(0);
-  await page.getByTestId('selector-escenario').selectOption('SUP');
+  await (await enGuia(page, 'selector-escenario')).selectOption('SUP');
   await expect(page.getByTestId('fila-TX-S-0011')).toHaveCount(0);
 });

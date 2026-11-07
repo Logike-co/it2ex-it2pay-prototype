@@ -64,7 +64,8 @@ test('el ítem activo del menú conserva el contraste con el mouse encima', asyn
     return [s.backgroundColor, s.color];
   });
   expect(fg).toBe('rgb(255, 255, 255)');
-  expect(bg).not.toBe('rgb(241, 245, 249)');
+  // Sigue en el azul institucional (#0E4495), no en el fondo de hover de los ítems inactivos.
+  expect(bg).toBe('rgb(14, 68, 149)');
 });
 
 test('con la guía abierta a 1280 px, ninguna vista se desborda', async ({ page }) => {

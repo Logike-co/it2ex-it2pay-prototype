@@ -1,6 +1,6 @@
 {
   "name": "it2pay-simulador",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Simulador comercial interactivo de IT2Pay (sin backend, datos ficticios)",
   "license": "UNLICENSED",
   "keywords": [

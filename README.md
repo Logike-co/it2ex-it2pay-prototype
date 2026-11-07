@@ -11,8 +11,9 @@ Aplicación web de demostración que simula, de punta a punta, la operación de 
 - **Motor de simulación** en TypeScript puro (`src/app/core/simulation/`): máquina de estados de la transacción (aprobación, rechazo, timeout, consulta, reintento con la misma clave idempotente, anulación y reverso), cupos por PDV y línea de negocio, cierre de caja, conciliación con sus tres tipos de excepción, compensación, comisiones, liquidación, cartera y cuenta de cobro de ejemplo.
 - **Estado compartido** en `signal()` de Angular (`src/app/core/state/simulator.store.ts`), persistido por escenario en el almacenamiento local del navegador.
 - **Terminal de caja operable por teclado**: `F1` nueva operación · `F2` buscar convenio · `Enter` avanzar · `F12` autorizar · `F8` imprimir comprobante · `Esc` volver o cancelar.
-- **Panel del presentador** (botón en el encabezado): fuerza el desenlace de la próxima autorización o del próximo reverso y activa o desactiva la idempotencia del autorizador ficticio.
-- **Modo presentador**: guía de demo en pantalla, escenarios precargados ESC-01..03, reinicio en 1 clic y trazabilidad de cada vista con sus historias de usuario y requerimientos (ver «Modo presentador»).
+- **Panel del presentador** (sección plegable de la guía de demo): fuerza el desenlace de la próxima autorización o del próximo reverso y activa o desactiva la idempotencia del autorizador ficticio.
+- **Identidad visual de IT2Pay**: azul institucional, degradado aqua, logo y tipografía Nunito del portal transaccional IT2Pay, con una barra superior limpia (☰, logo, sesión y botón de la guía).
+- **Modo presentador**: guía de demo en pantalla que concentra todos los controles de la demo, escenarios precargados ESC-01..03, reinicio en 1 clic y trazabilidad de cada vista con sus historias de usuario y requerimientos (ver «Modo presentador»).
 
 ## Requisitos
 
@@ -51,17 +52,19 @@ npx playwright install chromium
 
 | Control | Cómo se usa | Qué hace |
 | :--- | :--- | :--- |
-| Guía de demo | Botón «Guía de demo» o `Ctrl+Shift+D` | Panel acoplado a la derecha con el paso actual del guion: qué hacer, qué contar y la checklist de lo que debe verse. Sigue a la pantalla: al cambiar de vista desde el menú pasa al paso del guion que la usa. Permite ir a cualquier paso o vista |
+| Guía de demo | Botón «Guía de demo» de la barra superior o `Ctrl+Shift+D` | Panel acoplado a la derecha que reúne todos los controles de la demo, para que la pantalla quede limpia con el paso actual del guion: qué hacer, qué contar y la checklist de lo que debe verse. Sigue a la pantalla: al cambiar de vista desde el menú pasa al paso del guion que la usa. Permite ir a cualquier paso o vista |
+| Escenario | Lista «Escenario» arriba en la guía | Cambia entre Supermercados y Parqueaderos sin borrar datos |
 | Escenarios precargados | Botones ESC-01, ESC-02 y ESC-03 en la guía | Reinician los datos de su escenario, fijan el panel del presentador y abren su guion: camino feliz (Supermercados), excepciones y discrepancias (Parqueaderos) y rechazo (Supermercados) |
 | Reinicio en 1 clic | `Ctrl+Shift+R` | Restaura el escenario activo sin diálogo de confirmación y vuelve al primer paso del guion |
-| Trazabilidad | Casilla «Trazabilidad» del encabezado | Muestra encima de cada vista y en los títulos de sus tarjetas la historia de usuario y el requerimiento que valida (`US-09 · RF-09`), con sus escenarios BDD. No sale en la impresión |
+| Panel del presentador | Sección plegable «Panel del presentador» de la guía | Fuerza el desenlace de la próxima autorización o del próximo reverso, activa o desactiva la idempotencia y muestra los gatillos y el último desenlace |
+| Trazabilidad | Casilla «Trazabilidad» al pie de la guía | Muestra encima de cada vista y en los títulos de sus tarjetas la historia de usuario y el requerimiento que valida (`US-09 · RF-09`), con sus escenarios BDD. No sale en la impresión |
 
 Los atajos usan `Ctrl` también en Mac. Los datos de la guía y la trazabilidad están en `src/app/demo/`.
 
 ## Reiniciar escenarios
 
-- **Reiniciar escenario** (encabezado, con confirmación): restaura exactamente los datos iniciales del escenario activo y borra todo lo creado en vivo. El otro escenario no se toca.
-- **Reiniciar todo**: restaura los dos escenarios.
+- **Reiniciar escenario** (pie de la guía, con confirmación): restaura exactamente los datos iniciales del escenario activo y borra todo lo creado en vivo. El otro escenario no se toca.
+- **Reiniciar todo** (pie de la guía, con confirmación): restaura los dos escenarios.
 - Para empezar de cero sin la aplicación, basta con borrar los datos del sitio en el navegador (claves `it2pay-simulador:v1:*`).
 
 ## Gatillos de la demo
@@ -87,15 +90,21 @@ Cualquier otra terminación se aprueba. El panel del presentador puede forzar el
 - **Reglas ilustrativas**: las fórmulas de cupo, cierre, conciliación, compensación, comisiones, cartera y facturación están rotuladas «Ilustrativo — sujeto a validación del responsable funcional» y no representan reglas contractuales.
 - No hay cifrado, autenticación real, impuestos, facturación electrónica ni integración contable.
 
-## Cambiar la paleta cuando llegue el manual de marca
+## Identidad visual
 
-La paleta actual es **neutra y provisional**. Para aplicar la identidad de IT2Pay:
+La marca se toma del **portal transaccional IT2Pay**, que es la referencia vigente de la identidad:
 
-1. Edite solo los tokens de `:root` en `src/styles.css` (`--it2pay-primary`, `--it2pay-surface`, `--it2pay-text`, `--it2pay-success`, `--it2pay-warning`, `--it2pay-error` y sus variantes `-soft`/`-contrast`, más `--it2pay-font`).
-2. Si el manual trae logotipo, reemplace el logotipo textual del encabezado (`src/app/app.component.html`, elemento `data-testid="logotipo"`) y el ícono `public/favicon.svg`.
-3. Verifique el contraste de texto sobre los colores nuevos.
+| Elemento | Valor | Dónde |
+| :--- | :--- | :--- |
+| Azul institucional | `#0E4495` (hover `#0A3A80`) | `--it2pay-primary`: botones principales, títulos, menú activo y encabezado de la guía |
+| Azul claro | `#C9E7F4` | `--it2pay-primary-soft`: franja izquierda de las tarjetas, hover del menú y píldora «Simulador comercial» |
+| Degradado aqua | `#C9E7F4 → #9CE8DD` | `--it2pay-brand-gradient`: filete bajo la barra superior |
+| Cian y lima del logo | `#00AEEF`, `#72EE4B` | `--it2pay-accent`, `--it2pay-accent-2`: solo decorativos, nunca para texto (no alcanzan contraste AA) |
+| Fondo, bordes y texto | `#F8F9FC`, `#E3E6F0`, `#3A3B45`, `#5A5C69` | `--it2pay-surface-alt`, `--it2pay-border`, `--it2pay-text`, `--it2pay-text-muted` |
+| Tipografía | Nunito (variable, latin) | `src/fonts/`, autoalojada: la demo funciona sin red |
+| Logo | `public/brand/it2pay-logo.png` | Barra superior (`data-testid="logotipo"`) |
 
-Las vistas usan clases como `bg-primary`, `text-ink` o `border-line`, que se derivan de esos tokens; no hay que tocarlas.
+Si llega un manual de marca, se cambian **solo** los tokens de `:root` en `src/styles.css`, el logo de `public/brand/` y `public/favicon.svg`. Las vistas usan clases como `bg-primary`, `text-ink` o `border-line`, que se derivan de esos tokens; no hay que tocarlas. Verifique el contraste del texto sobre los colores nuevos.
 
 ## Estructura
 

@@ -24,6 +24,34 @@ describe('AppComponent (shell)', () => {
     expect(el.querySelectorAll('[data-testid^="nav-V"]')).toHaveLength(12);
   });
 
+  it('la barra superior no tiene controles de demo: viven en la guía', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const bar = el.querySelector('[data-testid="barra-superior"]') as HTMLElement;
+    expect(bar.querySelector('[data-testid="logo-img"]')?.getAttribute('src')).toBe('brand/it2pay-logo.png');
+    for (const id of ['selector-escenario', 'btn-trazabilidad', 'btn-presentador', 'btn-reiniciar', 'btn-reiniciar-todo']) {
+      expect(el.querySelector(`[data-testid="${id}"]`)).toBeNull();
+    }
+
+    (bar.querySelector('[data-testid="btn-guia-demo"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const guide = el.querySelector('[data-testid="guia-demo"]') as HTMLElement;
+    for (const id of ['selector-escenario', 'btn-trazabilidad', 'btn-presentador', 'btn-reiniciar', 'btn-reiniciar-todo']) {
+      expect(guide.querySelector(`[data-testid="${id}"]`)).not.toBeNull();
+    }
+  });
+
+  it('el botón de reinicio de la guía abre el diálogo del shell', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.componentInstance.demo.hudOpen.set(true);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    (el.querySelector('[data-testid="btn-reiniciar-todo"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="dialogo-reinicio"]')?.textContent).toContain('Reiniciar los dos escenarios');
+  });
+
   it('cada vista tiene una ruta registrada', () => {
     const paths = routes.map((r) => r.path);
     for (const v of VIEWS) {
